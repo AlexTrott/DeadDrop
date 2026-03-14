@@ -17,14 +17,6 @@ const TYPE_BORDER: Record<string, string> = {
   UTILITY: '#0891b2',
 }
 
-const TYPE_BG: Record<string, string> = {
-  HEALING: 'rgba(22,163,74,0.15)',
-  DAMAGE: 'rgba(220,38,38,0.15)',
-  BUFF: 'rgba(202,138,4,0.15)',
-  DEBUFF: 'rgba(147,51,234,0.15)',
-  UTILITY: 'rgba(8,145,178,0.15)',
-}
-
 const TYPE_BADGE_BG: Record<string, string> = {
   HEALING: 'linear-gradient(135deg, #16a34a, #15803d)',
   DAMAGE: 'linear-gradient(135deg, #dc2626, #b91c1c)',
@@ -35,7 +27,6 @@ const TYPE_BADGE_BG: Record<string, string> = {
 
 export function ItemCardComponent({ card, onClick, disabled, count, size = 'md' }: ItemCardProps) {
   const borderColor = TYPE_BORDER[card.type] ?? '#666'
-  const bgColor = TYPE_BG[card.type] ?? 'rgba(100,100,100,0.15)'
   const badgeBg = TYPE_BADGE_BG[card.type] ?? 'linear-gradient(135deg, #666, #555)'
 
   if (size === 'sm') {
@@ -96,7 +87,7 @@ export function ItemCardComponent({ card, onClick, disabled, count, size = 'md' 
         boxShadow: count && count > 0
           ? `0 0 20px ${borderColor}30, 0 4px 16px rgba(0,0,0,0.4)`
           : '0 4px 16px rgba(0,0,0,0.4)',
-        ringColor: borderColor,
+        ['--tw-ring-color' as any]: borderColor,
       }}
     >
       {/* Selection glow */}

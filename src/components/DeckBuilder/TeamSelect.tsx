@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useGameStore } from '../../store/gameStore.ts'
 import { ALL_WORKERS, WORKERS_BY_COMPANY } from '../../data/workers.ts'
-import { COMPANY_COLOURS } from '../../engine/constants.ts'
 import type { Company, GigWorker, WorkerTier } from '../../types/index.ts'
 
 const COMPANIES: { key: Company; label: string; emoji: string; tagline: string }[] = [

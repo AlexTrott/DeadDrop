@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useGameStore } from '../../store/gameStore.ts'
 import { WORKERS_BY_ID } from '../../data/workers.ts'
-import { createUnitState } from '../../engine/GameState.ts'
 import type { GigWorker } from '../../types/index.ts'
 
 const COMPANY_ACCENT: Record<string, string> = {
@@ -20,8 +19,6 @@ function LeadCard({ worker, isSelected, onClick, index }: {
 }) {
   const [hovered, setHovered] = useState(false)
   const color = COMPANY_ACCENT[worker.company] ?? '#666'
-  const unit = createUnitState(worker)
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 30 }}
@@ -146,12 +143,10 @@ function LeadCard({ worker, isSelected, onClick, index }: {
 export function StartingUnitSelect() {
   const playerWorkerIds = useGameStore((s) => s.playerWorkerIds)
   const playerStartingUnit = useGameStore((s) => s.playerStartingUnit)
-  const playerCompany = useGameStore((s) => s.playerCompany)
   const setPlayerStartingUnit = useGameStore((s) => s.setPlayerStartingUnit)
   const startGame = useGameStore((s) => s.startGame)
   const setScreen = useGameStore((s) => s.setScreen)
 
-  const color = playerCompany ? (COMPANY_ACCENT[playerCompany] ?? '#888') : '#888'
   const isReady = playerStartingUnit !== null
 
   return (
