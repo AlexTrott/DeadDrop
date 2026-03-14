@@ -130,18 +130,28 @@ export function CenterStrip({ opponent, player, turnNumber, isPlayerTurn, isAITh
               {isAIThinking ? '🤖 AI' : isPlayerTurn ? 'Your turn' : 'Opponent'}
             </span>
           </div>
-          <div className="flex items-center gap-0.5">
-            {Array.from({ length: Math.min(player.maxMana, 10) }, (_, i) => (
-              <div
-                key={i}
-                className="w-2 h-2 rounded-full transition-colors duration-300"
-                style={{
-                  background: i < player.currentMana ? 'linear-gradient(135deg, #3b82f6, #2563eb)' : 'rgba(255,255,255,0.08)',
-                  boxShadow: i < player.currentMana ? '0 0 3px rgba(59,130,246,0.4)' : 'none',
-                }}
-              />
-            ))}
-            <span className="text-[9px] text-blue-400/60 ml-1 font-mono tabular-nums font-bold">{player.currentMana}/{player.maxMana}</span>
+          {/* Mana crystals */}
+          <div className="flex items-center gap-1">
+            <span className="text-blue-400 text-sm">💧</span>
+            <div className="flex gap-0.5">
+              {Array.from({ length: Math.min(player.maxMana, 10) }, (_, i) => (
+                <div
+                  key={i}
+                  className="w-3 h-3 rounded-sm transition-all duration-300"
+                  style={{
+                    background: i < player.currentMana
+                      ? 'linear-gradient(135deg, #60a5fa, #2563eb)'
+                      : 'rgba(255,255,255,0.06)',
+                    boxShadow: i < player.currentMana ? '0 0 6px rgba(59,130,246,0.5)' : 'none',
+                    transform: i < player.currentMana ? 'rotate(45deg)' : 'rotate(45deg)',
+                    opacity: i < player.currentMana ? 1 : 0.3,
+                  }}
+                />
+              ))}
+            </div>
+            <span className="text-sm font-bold text-blue-400 ml-0.5 tabular-nums" style={{ fontFamily: 'var(--font-display)' }}>
+              {player.currentMana}<span className="text-blue-400/40">/{player.maxMana}</span>
+            </span>
           </div>
         </div>
 
@@ -188,21 +198,28 @@ export function CenterStrip({ opponent, player, turnNumber, isPlayerTurn, isAITh
           </span>
         </div>
 
-        {/* Mana - vertical stack on desktop */}
-        <div className="flex flex-col items-center gap-0.5 mt-1">
-          <div className="grid grid-cols-5 gap-0.5">
+        {/* Mana crystals - desktop */}
+        <div className="flex flex-col items-center gap-1 mt-1">
+          <span className="text-blue-400 text-lg">💧</span>
+          <div className="grid grid-cols-5 gap-1">
             {Array.from({ length: Math.min(player.maxMana, 10) }, (_, i) => (
               <div
                 key={i}
-                className="w-2.5 h-2.5 rounded-full transition-colors duration-300"
+                className="w-3.5 h-3.5 rounded-sm transition-all duration-300"
                 style={{
-                  background: i < player.currentMana ? 'linear-gradient(135deg, #3b82f6, #2563eb)' : 'rgba(255,255,255,0.08)',
-                  boxShadow: i < player.currentMana ? '0 0 3px rgba(59,130,246,0.4)' : 'none',
+                  background: i < player.currentMana
+                    ? 'linear-gradient(135deg, #60a5fa, #2563eb)'
+                    : 'rgba(255,255,255,0.06)',
+                  boxShadow: i < player.currentMana ? '0 0 8px rgba(59,130,246,0.5)' : 'none',
+                  transform: 'rotate(45deg)',
+                  opacity: i < player.currentMana ? 1 : 0.3,
                 }}
               />
             ))}
           </div>
-          <span className="text-[9px] text-blue-400/60 font-mono tabular-nums font-bold">{player.currentMana}/{player.maxMana}</span>
+          <span className="text-sm font-bold text-blue-400 tabular-nums" style={{ fontFamily: 'var(--font-display)' }}>
+            {player.currentMana}<span className="text-blue-400/40">/{player.maxMana}</span>
+          </span>
         </div>
 
         <div className="h-px w-10" style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)' }} />

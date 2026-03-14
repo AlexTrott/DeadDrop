@@ -88,7 +88,7 @@ export function GameBoard() {
 
         {/* Player panel — last in DOM (mobile bottom), but ordered left on desktop */}
         <div className="flex-1 min-h-0 lg:order-1">
-          <FighterPanel unit={playerActive} isPlayer={true} isActive={isPlayerTurn} layout="auto" />
+          <FighterPanel unit={playerActive} isPlayer={true} isActive={isPlayerTurn} currentMana={player.currentMana} layout="auto" />
         </div>
       </div>
 
