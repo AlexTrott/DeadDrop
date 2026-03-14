@@ -51,7 +51,10 @@ export function GameBoard() {
   }
 
   return (
-    <div className="h-[100dvh] flex flex-col bg-gradient-to-b from-gray-950 via-[#0f1923] to-gray-950 relative overflow-hidden">
+    <div
+      className="h-[100dvh] flex flex-col relative overflow-hidden"
+      style={{ background: 'radial-gradient(ellipse at center, #141a24 0%, #0a0e14 70%)' }}
+    >
       {/* Toast notifications */}
       <ToastContainer />
 
@@ -94,7 +97,7 @@ export function GameBoard() {
       />
 
       {/* Spacer for sticky action bar */}
-      <div className="h-16 sm:h-18" />
+      <div className="h-14 sm:h-16" />
 
       {/* Sticky action bar */}
       <ActionBar

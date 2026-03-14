@@ -10,6 +10,29 @@ interface ActionBarProps {
   disabled?: boolean
 }
 
+const ACTION_STYLES = {
+  attack: {
+    bg: 'linear-gradient(135deg, #dc2626, #b91c1c)',
+    disabledBg: 'rgba(127,29,29,0.3)',
+    glow: 'rgba(220,38,38,0.3)',
+  },
+  basic: {
+    bg: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
+    disabledBg: 'rgba(30,64,175,0.3)',
+    glow: 'rgba(37,99,235,0.3)',
+  },
+  ultimate: {
+    bg: 'linear-gradient(135deg, #7c3aed, #6d28d9)',
+    disabledBg: 'rgba(91,33,182,0.3)',
+    glow: 'rgba(124,58,237,0.3)',
+  },
+  end: {
+    bg: 'linear-gradient(135deg, #374151, #1f2937)',
+    disabledBg: 'rgba(31,41,55,0.3)',
+    glow: 'none',
+  },
+}
+
 export function ActionBar({ activeUnit, availableActions, onAction, disabled }: ActionBarProps) {
   const worker = WORKERS_BY_ID[activeUnit.workerId]
   if (!worker) return null
@@ -24,48 +47,48 @@ export function ActionBar({ activeUnit, availableActions, onAction, disabled }: 
 
   const actions = [
     {
-      key: 'attack',
+      key: 'attack' as const,
       label: 'Attack',
       sublabel: `${worker.attack} dmg`,
-      bg: 'bg-red-800',
-      activeBg: 'bg-red-700 hover:bg-red-600',
       action: { type: 'ATTACK' as const },
       available: canAttack,
     },
     {
-      key: 'basic',
+      key: 'basic' as const,
       label: worker.abilities[0]!.name,
       sublabel: `${basicCost} mana`,
-      bg: 'bg-blue-900',
-      activeBg: 'bg-blue-700 hover:bg-blue-600',
       action: { type: 'USE_ABILITY' as const, abilityIndex: 0 as const },
       available: canBasic,
     },
     {
-      key: 'ultimate',
+      key: 'ultimate' as const,
       label: worker.abilities[1]!.name,
       sublabel: `${ultCost} mana`,
-      bg: 'bg-purple-900',
-      activeBg: 'bg-purple-700 hover:bg-purple-600',
       action: { type: 'USE_ABILITY' as const, abilityIndex: 1 as const },
       available: canUltimate,
     },
     {
-      key: 'end',
+      key: 'end' as const,
       label: 'End Turn',
       sublabel: '',
-      bg: 'bg-gray-800',
-      activeBg: 'bg-gray-600 hover:bg-gray-500',
       action: { type: 'END_TURN' as const },
       available: canEndTurn,
     },
   ]
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-30 bg-gray-950 border-t border-gray-700/80">
-      <div className="grid grid-cols-4 max-w-lg mx-auto">
+    <div
+      className="fixed bottom-0 left-0 right-0 z-30"
+      style={{
+        background: 'rgba(10,14,20,0.95)',
+        backdropFilter: 'blur(12px)',
+        borderTop: '1px solid rgba(255,255,255,0.06)',
+      }}
+    >
+      <div className="grid grid-cols-4 gap-1.5 max-w-lg mx-auto p-1.5 sm:p-2">
         {actions.map((a) => {
           const isDisabled = disabled || !a.available
+          const style = ACTION_STYLES[a.key]
           return (
             <button
               key={a.key}
@@ -73,16 +96,21 @@ export function ActionBar({ activeUnit, availableActions, onAction, disabled }: 
               disabled={isDisabled}
               className={`
                 flex flex-col items-center justify-center gap-0.5
-                py-2.5 px-1 transition-colors
-                ${isDisabled ? `${a.bg} opacity-40` : `${a.activeBg} text-white active:brightness-125`}
-                ${isDisabled ? 'cursor-not-allowed' : ''}
+                py-2 sm:py-2.5 px-1 rounded-lg transition-all
+                ${isDisabled ? 'cursor-not-allowed opacity-50' : 'active:scale-95 hover:brightness-110'}
               `}
+              style={{
+                background: isDisabled ? style.disabledBg : style.bg,
+                boxShadow: !isDisabled && style.glow !== 'none' ? `0 0 12px ${style.glow}` : 'none',
+              }}
             >
-              <span className="text-[11px] sm:text-xs font-bold leading-tight text-center truncate w-full px-0.5">
+              <span className="text-[11px] sm:text-xs font-bold leading-tight text-center truncate w-full px-0.5 text-white"
+                style={{ fontFamily: 'var(--font-body)' }}
+              >
                 {a.label}
               </span>
               {a.sublabel && (
-                <span className="text-[9px] sm:text-[10px] text-white/50 leading-tight">
+                <span className="text-[9px] sm:text-[10px] text-white/40 leading-tight">
                   {a.sublabel}
                 </span>
               )}
