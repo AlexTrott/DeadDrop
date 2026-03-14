@@ -8,6 +8,11 @@ import { getAIAction, aiSelectTeam, aiBuildDeck } from '../engine/AIOpponent.ts'
 import { getAIEmote } from '../data/emotes.ts'
 import { useToastStore } from '../components/Game/Toast.tsx'
 import type { Company } from '../types/index.ts'
+import {
+  playAttack, playAbility, playCardPlay, playRetreat,
+  playKO, playUnitEnter, playTurnStart, playEndTurn,
+  playGameOver, startBgNoise, stopBgNoise, initAudio,
+} from '../utils/soundManager.ts'
 
 export type GameScreen = 'title' | 'team-select' | 'deck-build' | 'game' | 'game-over'
 
@@ -43,6 +48,40 @@ interface GameStore {
 }
 
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+/** Play sound effects based on action type and state changes */
+function playSoundForAction(action: GameAction, oldState: GameState, newState: GameState) {
+  // Action-specific sounds
+  switch (action.type) {
+    case 'ATTACK': playAttack(); break
+    case 'USE_ABILITY': playAbility(action.abilityIndex === 1); break
+    case 'PLAY_CARD': playCardPlay(); break
+    case 'RETREAT': playRetreat(); break
+    case 'END_TURN': playEndTurn(); break
+  }
+
+  // Detect KOs by comparing states
+  const oldOpId = action.type === 'END_TURN' ? oldState.activePlayerId : (oldState.activePlayerId === 'player1' ? 'player2' : 'player1')
+  const oldOpUnits = oldState.players[oldOpId]!.workers
+  const newOpUnits = newState.players[oldOpId]!.workers
+  for (let i = 0; i < oldOpUnits.length; i++) {
+    if (!oldOpUnits[i]!.isKnockedOut && newOpUnits[i]!.isKnockedOut) {
+      setTimeout(() => playKO(), 50)
+      // Check if a new unit entered
+      const newActive = getActiveUnit(newState.players[oldOpId]!)
+      if (!newActive.isKnockedOut) {
+        setTimeout(() => playUnitEnter(), 300)
+      }
+      break
+    }
+  }
+
+  // Game over
+  if (newState.phase === 'GAME_OVER') {
+    const won = newState.winner === 'player1'
+    setTimeout(() => playGameOver(won), 200)
+  }
+}
 
 export const useGameStore = create<GameStore>((set, get) => ({
   screen: 'title',
@@ -116,6 +155,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
     state = advanceToMainPhase(state)
     set({ gameState: state, screen: 'game' })
 
+    // Initialize audio on game start (requires user interaction context)
+    initAudio()
+    startBgNoise()
+    playTurnStart()
+
     if (state.activePlayerId === 'player2') {
       setTimeout(() => get().processAITurn(), 800)
     }
@@ -127,6 +171,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     const newState = applyAction(gameState, action)
     set({ gameState: newState })
+
+    // Play sounds for player actions
+    playSoundForAction(action, gameState, newState)
 
     if (newState.phase === 'GAME_OVER') {
       setTimeout(() => set({ screen: 'game-over' }), 1500)
@@ -178,6 +225,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       // Apply the action
       const newState = applyAction(gameState, action)
       set({ gameState: newState })
+
+      // Play sounds for AI actions
+      playSoundForAction(action, gameState, newState)
 
       // Post-action emotes
       if (actionCount === 0 || Math.random() < 0.25) {
@@ -232,6 +282,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
         await delay(500 + Math.random() * 500)
         await processOneAction()
       } else {
+        // It's now the player's turn
+        playTurnStart()
         set({ isAIThinking: false })
       }
     }
@@ -239,7 +291,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     await processOneAction()
   },
 
-  resetGame: () => set({
+  resetGame: () => { stopBgNoise(); set({
     screen: 'title',
     playerCompany: null,
     playerWorkerIds: [],
@@ -249,7 +301,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     aiDeck: [],
     gameState: null,
     isAIThinking: false,
-  }),
+  }) },
 }))
 
 /** Get available actions for the current player */
