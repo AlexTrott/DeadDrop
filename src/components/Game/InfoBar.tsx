@@ -16,20 +16,24 @@ interface CenterStripProps {
   isAIThinking: boolean
   onSwap?: (benchIndex: number) => void
   canSwap?: boolean
+  layout?: 'auto'
 }
 
-function BenchCircle({ unit, index, color, canSwap, onSwap }: {
+function BenchCircle({ unit, index, color, canSwap, onSwap, size = 'md' }: {
   unit: PlayerState['workers'][number]
   index: number
   color: string
   canSwap: boolean
   onSwap?: (index: number) => void
+  size?: 'md' | 'lg'
 }) {
   const worker = WORKERS_BY_ID[unit.workerId]
   if (!worker) return null
 
   const hpPct = unit.maxHp > 0 ? (unit.currentHp / unit.maxHp) * 100 : 0
   const hpColor = hpPct > 60 ? '#22c55e' : hpPct > 30 ? '#eab308' : '#ef4444'
+  const circleSize = size === 'lg' ? 'w-16 h-16 lg:w-18 lg:h-18' : 'w-14 h-14 sm:w-16 sm:h-16'
+  const nameWidth = size === 'lg' ? 'w-16 lg:w-18' : 'w-14 sm:w-16'
 
   return (
     <button
@@ -42,9 +46,8 @@ function BenchCircle({ unit, index, color, canSwap, onSwap }: {
       `}
       title={`${worker.name} ${unit.currentHp}/${unit.maxHp} HP`}
     >
-      {/* HP ring using conic gradient */}
       <div
-        className="w-14 h-14 sm:w-16 sm:h-16 rounded-full p-[3px]"
+        className={`${circleSize} rounded-full p-[3px]`}
         style={{
           background: unit.isKnockedOut
             ? '#333'
@@ -52,7 +55,6 @@ function BenchCircle({ unit, index, color, canSwap, onSwap }: {
           boxShadow: canSwap ? `0 0 12px ${color}30` : 'none',
         }}
       >
-        {/* Inner circle with art */}
         <div className="w-full h-full rounded-full overflow-hidden bg-gray-900">
           {unit.isKnockedOut ? (
             <div className="w-full h-full flex items-center justify-center text-xl">💀</div>
@@ -73,9 +75,14 @@ function BenchCircle({ unit, index, color, canSwap, onSwap }: {
         </div>
       </div>
 
-      {/* Name label */}
-      <div className="text-[8px] sm:text-[9px] text-center text-gray-500 mt-0.5 truncate w-14 sm:w-16" style={{ fontFamily: 'var(--font-display)' }}>
-        {worker.name.split(' ').pop()}
+      {/* Name + HP label */}
+      <div className={`text-center mt-0.5 ${nameWidth}`}>
+        <div className="text-[8px] sm:text-[9px] text-gray-500 truncate" style={{ fontFamily: 'var(--font-display)' }}>
+          {worker.name.split(' ').pop()}
+        </div>
+        <div className="text-[8px] text-gray-600 tabular-nums hidden lg:block">
+          {unit.currentHp}/{unit.maxHp}
+        </div>
       </div>
     </button>
   )
@@ -95,25 +102,19 @@ export function CenterStrip({ opponent, player, turnNumber, isPlayerTurn, isAITh
 
   return (
     <div
-      className="relative z-10 flex-shrink-0 px-3 sm:px-4 py-2"
-      style={{
-        background: '#0a0e14',
-      }}
+      className="relative z-10 flex-shrink-0 px-3 sm:px-4 py-2 lg:py-0 lg:px-0 lg:flex lg:flex-col lg:items-center lg:justify-center lg:w-28 lg:gap-4"
+      style={{ background: '#0a0e14' }}
     >
-      {/* Main row: bench + turn + bench */}
-      <div className="flex items-center justify-between gap-2 max-w-2xl mx-auto">
-        {/* Opponent bench */}
+      {/* === MOBILE: horizontal row === */}
+      <div className="flex items-center justify-between gap-2 max-w-2xl mx-auto lg:hidden">
         <div className="flex gap-2">
           {opponentBench.map(({ unit, index }) => {
             const w = WORKERS_BY_ID[unit.workerId]
             const c = w ? COMPANY_ACCENT[w.company] ?? '#666' : '#666'
-            return (
-              <BenchCircle key={index} unit={unit} index={index} color={c} canSwap={false} />
-            )
+            return <BenchCircle key={index} unit={unit} index={index} color={c} canSwap={false} />
           })}
         </div>
 
-        {/* Turn indicator + mana */}
         <div className="flex flex-col items-center gap-1">
           <div className="flex items-center gap-2">
             <span className="text-gray-600 text-xs">⚔</span>
@@ -129,53 +130,95 @@ export function CenterStrip({ opponent, player, turnNumber, isPlayerTurn, isAITh
               {isAIThinking ? '🤖 AI' : isPlayerTurn ? 'Your turn' : 'Opponent'}
             </span>
           </div>
-
-          {/* Mana dots */}
           <div className="flex items-center gap-0.5">
             {Array.from({ length: Math.min(player.maxMana, 10) }, (_, i) => (
               <div
                 key={i}
                 className="w-2 h-2 rounded-full transition-colors duration-300"
                 style={{
-                  background: i < player.currentMana
-                    ? 'linear-gradient(135deg, #3b82f6, #2563eb)'
-                    : 'rgba(255,255,255,0.08)',
+                  background: i < player.currentMana ? 'linear-gradient(135deg, #3b82f6, #2563eb)' : 'rgba(255,255,255,0.08)',
                   boxShadow: i < player.currentMana ? '0 0 3px rgba(59,130,246,0.4)' : 'none',
                 }}
               />
             ))}
-            <span className="text-[9px] text-blue-400/60 ml-1 font-mono tabular-nums font-bold">
-              {player.currentMana}/{player.maxMana}
-            </span>
+            <span className="text-[9px] text-blue-400/60 ml-1 font-mono tabular-nums font-bold">{player.currentMana}/{player.maxMana}</span>
           </div>
         </div>
 
-        {/* Player bench */}
         <div className="flex gap-2">
           {playerBench.map(({ unit, index }) => {
             const canSwapThis = canSwap && !unit.isKnockedOut
-            return (
-              <BenchCircle
-                key={index}
-                unit={unit}
-                index={index}
-                color={playerColor}
-                canSwap={!!canSwapThis}
-                onSwap={onSwap}
-              />
-            )
+            return <BenchCircle key={index} unit={unit} index={index} color={playerColor} canSwap={!!canSwapThis} onSwap={onSwap} />
           })}
         </div>
       </div>
 
-      {/* Deck counts */}
-      <div className="flex justify-between max-w-2xl mx-auto mt-1">
+      {/* Mobile deck counts */}
+      <div className="flex justify-between max-w-2xl mx-auto mt-1 lg:hidden">
         <span className="text-[9px] text-gray-600 tabular-nums">Hand:{opponent.hand.length} Deck:{opponent.deck.length}</span>
         <span className="text-[9px] text-gray-600 tabular-nums">Deck:{player.deck.length}</span>
+      </div>
+
+      {/* === DESKTOP: vertical column === */}
+      {/* Opponent bench */}
+      <div className="hidden lg:flex flex-col items-center gap-2">
+        <span className="text-[8px] text-gray-600 uppercase tracking-wider">Opponent</span>
+        {opponentBench.map(({ unit, index }) => {
+          const w = WORKERS_BY_ID[unit.workerId]
+          const c = w ? COMPANY_ACCENT[w.company] ?? '#666' : '#666'
+          return <BenchCircle key={index} unit={unit} index={index} color={c} canSwap={false} size="lg" />
+        })}
+        <span className="text-[8px] text-gray-600 tabular-nums">Hand:{opponent.hand.length} Deck:{opponent.deck.length}</span>
+      </div>
+
+      {/* Turn indicator */}
+      <div className="hidden lg:flex flex-col items-center gap-2">
+        <div className="h-px w-10" style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)' }} />
+        <div className="flex flex-col items-center gap-1">
+          <span className="text-sm font-bold text-gray-500" style={{ fontFamily: 'var(--font-display)' }}>T{turnNumber}</span>
+          <span
+            className="text-[10px] font-semibold px-2.5 py-1 rounded-full"
+            style={{
+              background: isPlayerTurn ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
+              color: isPlayerTurn ? '#4ade80' : '#f87171',
+              border: `1px solid ${isPlayerTurn ? 'rgba(34,197,94,0.25)' : 'rgba(239,68,68,0.25)'}`,
+            }}
+          >
+            {isAIThinking ? '🤖 AI' : isPlayerTurn ? 'Your turn' : 'Opponent'}
+          </span>
+        </div>
+
+        {/* Mana - vertical stack on desktop */}
+        <div className="flex flex-col items-center gap-0.5 mt-1">
+          <div className="grid grid-cols-5 gap-0.5">
+            {Array.from({ length: Math.min(player.maxMana, 10) }, (_, i) => (
+              <div
+                key={i}
+                className="w-2.5 h-2.5 rounded-full transition-colors duration-300"
+                style={{
+                  background: i < player.currentMana ? 'linear-gradient(135deg, #3b82f6, #2563eb)' : 'rgba(255,255,255,0.08)',
+                  boxShadow: i < player.currentMana ? '0 0 3px rgba(59,130,246,0.4)' : 'none',
+                }}
+              />
+            ))}
+          </div>
+          <span className="text-[9px] text-blue-400/60 font-mono tabular-nums font-bold">{player.currentMana}/{player.maxMana}</span>
+        </div>
+
+        <div className="h-px w-10" style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)' }} />
+      </div>
+
+      {/* Player bench */}
+      <div className="hidden lg:flex flex-col items-center gap-2">
+        <span className="text-[8px] text-gray-600 uppercase tracking-wider">Your team</span>
+        {playerBench.map(({ unit, index }) => {
+          const canSwapThis = canSwap && !unit.isKnockedOut
+          return <BenchCircle key={index} unit={unit} index={index} color={playerColor} canSwap={!!canSwapThis} onSwap={onSwap} size="lg" />
+        })}
+        <span className="text-[8px] text-gray-600 tabular-nums">Deck:{player.deck.length}</span>
       </div>
     </div>
   )
 }
 
-// Keep the old export name for backwards compat during transition
 export { CenterStrip as InfoBar }

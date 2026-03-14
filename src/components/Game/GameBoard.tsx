@@ -16,7 +16,6 @@ export function GameBoard() {
   const availableActions = useAvailableActions()
   const addToast = useToastStore((s) => s.addToast)
 
-  // Track combat log length to fire toasts for new entries
   const lastLogLen = useRef(0)
   useEffect(() => {
     if (!gameState) return
@@ -55,10 +54,8 @@ export function GameBoard() {
       className="h-[100dvh] flex flex-col relative overflow-hidden"
       style={{ background: '#0a0e14' }}
     >
-      {/* Toast notifications */}
       <ToastContainer />
 
-      {/* Forced Swap Modal */}
       {showForcedSwap && (
         <ForcedSwapModal
           player={player}
@@ -66,25 +63,33 @@ export function GameBoard() {
         />
       )}
 
-      {/* === THE DUEL LAYOUT === */}
-      {/* Battlefield fills available space above hand/actions */}
-      <div className="flex-1 min-h-0 flex flex-col max-w-2xl mx-auto w-full">
-        {/* Opponent art panel */}
-        <FighterPanel unit={opponentActive} isPlayer={false} isActive={!isPlayerTurn} />
+      {/* === BATTLEFIELD === */}
+      {/* Mobile: vertical stack (opponent art → center strip → player art) */}
+      {/* Desktop (lg+): horizontal layout (opponent card | center column | player card) */}
+      <div className="flex-1 min-h-0 flex flex-col lg:flex-row lg:items-stretch lg:gap-0 w-full lg:max-w-6xl lg:mx-auto">
+        {/* Opponent panel */}
+        <div className="flex-1 min-h-0 lg:order-1">
+          <FighterPanel unit={opponentActive} isPlayer={false} isActive={!isPlayerTurn} layout="auto" />
+        </div>
 
-        {/* Center strip: bench circles + turn + mana */}
-        <CenterStrip
-          opponent={opponent}
-          player={player}
-          turnNumber={gameState.turnNumber}
-          isPlayerTurn={isPlayerTurn}
-          isAIThinking={isAIThinking}
-          onSwap={(benchIndex) => handleAction({ type: 'SWAP_UNIT', benchIndex })}
-          canSwap={canSwap}
-        />
+        {/* Center strip */}
+        <div className="lg:order-2">
+          <CenterStrip
+            opponent={opponent}
+            player={player}
+            turnNumber={gameState.turnNumber}
+            isPlayerTurn={isPlayerTurn}
+            isAIThinking={isAIThinking}
+            onSwap={(benchIndex) => handleAction({ type: 'SWAP_UNIT', benchIndex })}
+            canSwap={canSwap}
+            layout="auto"
+          />
+        </div>
 
-        {/* Player art panel */}
-        <FighterPanel unit={playerActive} isPlayer={true} isActive={isPlayerTurn} />
+        {/* Player panel */}
+        <div className="flex-1 min-h-0 lg:order-3">
+          <FighterPanel unit={playerActive} isPlayer={true} isActive={isPlayerTurn} layout="auto" />
+        </div>
       </div>
 
       {/* Hand drawer */}
@@ -95,10 +100,8 @@ export function GameBoard() {
         disabled={!isPlayerTurn || isAIThinking}
       />
 
-      {/* Spacer for sticky action bar */}
       <div className="h-14 sm:h-16" />
 
-      {/* Sticky action bar */}
       <ActionBar
         activeUnit={playerActive}
         availableActions={availableActions}

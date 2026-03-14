@@ -13,6 +13,7 @@ interface FighterPanelProps {
   unit: UnitState
   isPlayer: boolean
   isActive: boolean
+  layout?: 'auto'
 }
 
 function FighterPanel({ unit, isPlayer, isActive }: FighterPanelProps) {
@@ -25,9 +26,9 @@ function FighterPanel({ unit, isPlayer, isActive }: FighterPanelProps) {
 
   return (
     <div
-      className={`relative flex-1 min-h-[160px] overflow-hidden ${unit.isKnockedOut ? 'grayscale opacity-40' : ''}`}
+      className={`relative h-full min-h-[160px] overflow-hidden ${unit.isKnockedOut ? 'grayscale opacity-40' : ''}`}
     >
-      {/* Full-width artwork */}
+      {/* Full artwork background */}
       <img
         src={`/art/workers/${worker.id}.webp`}
         alt={worker.name}
@@ -45,15 +46,29 @@ function FighterPanel({ unit, isPlayer, isActive }: FighterPanelProps) {
         style={{ background: 'linear-gradient(to top, #0a0e14 0%, #0a0e14cc 30%, transparent 100%)' }}
       />
 
-      {/* Top gradient for opponent (so center strip blends) */}
+      {/* Top gradient for opponent on mobile (blends into center strip) */}
       {!isPlayer && (
         <div
-          className="absolute top-0 left-0 right-0 h-1/4 pointer-events-none"
+          className="absolute top-0 left-0 right-0 h-1/4 pointer-events-none lg:hidden"
           style={{ background: 'linear-gradient(to bottom, #0a0e14 0%, transparent 100%)' }}
         />
       )}
 
-      {/* Active turn glow border */}
+      {/* Side gradient on desktop: opponent fades right, player fades left (into center column) */}
+      {!isPlayer && (
+        <div
+          className="absolute top-0 right-0 bottom-0 w-1/4 pointer-events-none hidden lg:block"
+          style={{ background: 'linear-gradient(to left, #0a0e14 0%, transparent 100%)' }}
+        />
+      )}
+      {isPlayer && (
+        <div
+          className="absolute top-0 left-0 bottom-0 w-1/4 pointer-events-none hidden lg:block"
+          style={{ background: 'linear-gradient(to right, #0a0e14 0%, transparent 100%)' }}
+        />
+      )}
+
+      {/* Active turn glow */}
       {isActive && (
         <div
           className="absolute inset-0 pointer-events-none"
@@ -65,10 +80,10 @@ function FighterPanel({ unit, isPlayer, isActive }: FighterPanelProps) {
         />
       )}
 
-      {/* Tier stars - top left */}
-      <div className="absolute top-3 left-3 flex gap-0.5 z-10">
+      {/* Tier stars */}
+      <div className="absolute top-3 left-3 lg:top-4 lg:left-4 flex gap-0.5 z-10">
         {Array.from({ length: worker.tier }).map((_, i) => (
-          <span key={i} className="text-yellow-400 text-sm" style={{ filter: 'drop-shadow(0 0 4px rgba(250,204,21,0.7))' }}>★</span>
+          <span key={i} className="text-yellow-400 text-sm lg:text-base" style={{ filter: 'drop-shadow(0 0 4px rgba(250,204,21,0.7))' }}>★</span>
         ))}
       </div>
 
@@ -87,22 +102,20 @@ function FighterPanel({ unit, isPlayer, isActive }: FighterPanelProps) {
       )}
 
       {/* Bottom info overlay */}
-      <div className="absolute bottom-0 left-0 right-0 z-10 px-4 pb-3">
+      <div className="absolute bottom-0 left-0 right-0 z-10 px-4 pb-3 lg:px-5 lg:pb-4">
         {/* Name row */}
         <div className="flex items-end justify-between gap-2 mb-1.5">
           <h2
-            className="text-lg sm:text-xl font-bold tracking-wide text-white"
+            className="text-lg sm:text-xl lg:text-2xl font-bold tracking-wide text-white"
             style={{ fontFamily: 'var(--font-display)', textShadow: '0 2px 8px rgba(0,0,0,0.6)' }}
           >
             {worker.name}
           </h2>
           <div className="flex items-center gap-3 flex-shrink-0">
-            {/* ATK badge */}
             <div className="flex items-center gap-1 bg-black/50 backdrop-blur-sm rounded-full px-2 py-0.5">
               <span className="text-orange-400 text-xs">⚔</span>
               <span className="text-white text-sm font-bold">{worker.attack}</span>
             </div>
-            {/* HP badge */}
             <div className="flex items-center gap-1 bg-black/50 backdrop-blur-sm rounded-full px-2 py-0.5">
               <span className="text-xs" style={{ color: hpColor }}>♥</span>
               <span className="text-white text-sm font-bold">{unit.currentHp}<span className="text-gray-400 text-xs">/{unit.maxHp}</span></span>
@@ -118,6 +131,11 @@ function FighterPanel({ unit, isPlayer, isActive }: FighterPanelProps) {
           />
         </div>
 
+        {/* Flavour text — desktop only */}
+        <p className="hidden lg:block text-[11px] text-gray-400 italic mb-2 leading-tight" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>
+          "{worker.flavourText}"
+        </p>
+
         {/* Status effects */}
         {unit.statusEffects.length > 0 && (
           <div className="flex flex-wrap gap-1 mb-2">
@@ -127,9 +145,9 @@ function FighterPanel({ unit, isPlayer, isActive }: FighterPanelProps) {
           </div>
         )}
 
-        {/* Abilities (player only) */}
-        {isPlayer && !unit.isKnockedOut && (
-          <div className="flex gap-2">
+        {/* Abilities — shown for both player and opponent on desktop, player only on mobile */}
+        {!unit.isKnockedOut && (
+          <div className={`flex gap-2 ${!isPlayer ? 'hidden lg:flex' : ''}`}>
             {worker.abilities.map((ability, i) => (
               <div
                 key={i}
@@ -148,14 +166,15 @@ function FighterPanel({ unit, isPlayer, isActive }: FighterPanelProps) {
                   {ability.manaCost}
                 </span>
                 <span className="text-xs sm:text-sm text-white font-semibold">{ability.name}</span>
-                {ability.damage && (
-                  <span className="text-[10px] text-gray-400 hidden sm:inline">{ability.damage} dmg</span>
-                )}
+                {/* Show damage/description on desktop */}
+                <span className="text-[10px] text-gray-400 hidden lg:inline">
+                  {ability.damage ? `${ability.damage} dmg` : ability.description.split('.')[0]}
+                </span>
                 {/* Tooltip */}
-                <div className="absolute z-50 bottom-full left-0 mb-2 w-52 p-2.5 rounded-xl bg-[#12161e] border border-gray-700/50 shadow-2xl text-xs leading-relaxed opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity">
-                  <div className="font-bold text-white" style={{ fontFamily: 'var(--font-display)' }}>{ability.name}</div>
-                  <div className="text-blue-400 text-[10px] mt-0.5">{ability.manaCost} mana{ability.damage ? ` · ${ability.damage} dmg` : ''}</div>
-                  <div className="text-gray-400 mt-1">{ability.description}</div>
+                <div className="absolute z-50 bottom-full left-0 mb-2 w-56 p-3 rounded-xl bg-[#12161e] border border-gray-700/50 shadow-2xl text-xs leading-relaxed opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity">
+                  <div className="font-bold text-white text-sm" style={{ fontFamily: 'var(--font-display)' }}>{ability.name}</div>
+                  <div className="text-blue-400 text-[11px] mt-0.5">{ability.manaCost} mana{ability.damage ? ` · ${ability.damage} dmg` : ''}</div>
+                  <div className="text-gray-400 mt-1.5 leading-relaxed">{ability.description}</div>
                 </div>
               </div>
             ))}
@@ -166,25 +185,4 @@ function FighterPanel({ unit, isPlayer, isActive }: FighterPanelProps) {
   )
 }
 
-interface BattlefieldProps {
-  playerUnit: UnitState
-  opponentUnit: UnitState
-  turnNumber: number
-  isPlayerTurn: boolean
-  isAIThinking: boolean
-}
-
-export function Battlefield({ playerUnit, opponentUnit, turnNumber, isPlayerTurn, isAIThinking }: BattlefieldProps) {
-  return (
-    <div className="flex flex-col h-full">
-      {/* Opponent panel */}
-      <FighterPanel unit={opponentUnit} isPlayer={false} isActive={!isPlayerTurn} />
-
-      {/* Player panel */}
-      <FighterPanel unit={playerUnit} isPlayer={true} isActive={isPlayerTurn} />
-    </div>
-  )
-}
-
-// Export the turn/bench strip separately so GameBoard can place it between panels
 export { FighterPanel }
