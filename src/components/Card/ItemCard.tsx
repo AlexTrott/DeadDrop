@@ -107,8 +107,8 @@ export function ItemCardComponent({ card, onClick, disabled, count, size = 'md' 
         />
       )}
 
-      {/* Card Art */}
-      <div className="relative h-28 sm:h-36 overflow-hidden">
+      {/* Card Art — square aspect to show full artwork */}
+      <div className="relative aspect-square overflow-hidden">
         <img
           src={`/art/items/${card.id}.webp`}
           alt={card.name}

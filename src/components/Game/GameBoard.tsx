@@ -14,7 +14,7 @@ export function GameBoard() {
   const isAIThinking = useGameStore((s) => s.isAIThinking)
   const dispatch = useGameStore((s) => s.dispatch)
   const availableActions = useAvailableActions()
-  const addToast = useToastStore((s) => s.addToast)
+  const addEntry = useToastStore((s) => s.addEntry)
 
   const lastLogLen = useRef(0)
   useEffect(() => {
@@ -24,7 +24,7 @@ export function GameBoard() {
       const newEntries = log.slice(lastLogLen.current)
       for (const entry of newEntries) {
         const type = entry.playerId === 'player1' ? 'player' as const : 'opponent' as const
-        addToast(entry.message, type)
+        addEntry(entry.message, type)
       }
       lastLogLen.current = log.length
     }
@@ -65,10 +65,10 @@ export function GameBoard() {
 
       {/* === BATTLEFIELD === */}
       {/* Mobile: vertical stack (opponent art → center strip → player art) */}
-      {/* Desktop (lg+): horizontal layout (opponent card | center column | player card) */}
+      {/* Desktop (lg+): horizontal layout (player LEFT | center | opponent RIGHT) */}
       <div className="flex-1 min-h-0 flex flex-col lg:flex-row lg:items-stretch lg:gap-0 w-full lg:max-w-6xl lg:mx-auto">
-        {/* Opponent panel */}
-        <div className="flex-1 min-h-0 lg:order-1">
+        {/* Opponent panel — first in DOM (mobile top), but ordered right on desktop */}
+        <div className="flex-1 min-h-0 lg:order-3">
           <FighterPanel unit={opponentActive} isPlayer={false} isActive={!isPlayerTurn} layout="auto" />
         </div>
 
@@ -86,8 +86,8 @@ export function GameBoard() {
           />
         </div>
 
-        {/* Player panel */}
-        <div className="flex-1 min-h-0 lg:order-3">
+        {/* Player panel — last in DOM (mobile bottom), but ordered left on desktop */}
+        <div className="flex-1 min-h-0 lg:order-1">
           <FighterPanel unit={playerActive} isPlayer={true} isActive={isPlayerTurn} layout="auto" />
         </div>
       </div>

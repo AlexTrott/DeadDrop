@@ -114,7 +114,7 @@ export function DeckBuilder() {
             <span className="text-xs text-gray-600 italic hidden sm:inline">— Themed to your company</span>
             <div className="flex-1 h-px ml-2" style={{ background: `linear-gradient(90deg, ${color}20, transparent)` }} />
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
             {companyCards.map((card, idx) => {
               const count = countInDeck(card.id)
               return (
@@ -149,7 +149,7 @@ export function DeckBuilder() {
             <span className="text-xs text-gray-600 italic hidden sm:inline">— Available to all companies</span>
             <div className="flex-1 h-px ml-2" style={{ background: 'linear-gradient(90deg, rgba(107,114,128,0.2), transparent)' }} />
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
             {neutralCards.map((card, idx) => {
               const count = countInDeck(card.id)
               return (

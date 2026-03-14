@@ -1,10 +1,12 @@
 import { create } from 'zustand'
 import type { GameState, GameAction } from '../types/index.ts'
-import { createInitialGameState } from '../engine/GameState.ts'
+import { createInitialGameState, getActiveUnit } from '../engine/GameState.ts'
 import { WORKERS_BY_ID } from '../data/workers.ts'
 import { applyAction, advanceToMainPhase } from '../engine/GameEngine.ts'
 import { getAvailableActions } from '../engine/ActionValidator.ts'
 import { getAIAction, aiSelectTeam, aiBuildDeck, aiSelectStartingUnit } from '../engine/AIOpponent.ts'
+import { getAIEmote } from '../data/emotes.ts'
+import { useToastStore } from '../components/Game/Toast.tsx'
 import type { Company } from '../types/index.ts'
 
 export type GameScreen = 'title' | 'team-select' | 'deck-build' | 'starting-unit' | 'game' | 'game-over'
@@ -42,6 +44,8 @@ interface GameStore {
   resetGame: () => void
 }
 
+const delay = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
 export const useGameStore = create<GameStore>((set, get) => ({
   screen: 'title',
   setScreen: (screen) => set({ screen }),
@@ -75,10 +79,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (!worker) return
 
     if (playerWorkerIds.includes(workerId)) {
-      // Deselect
       set({ playerWorkerIds: playerWorkerIds.filter((id) => id !== workerId) })
     } else {
-      // Remove any existing pick from the same tier, then add this one
       const filtered = playerWorkerIds.filter((id) => {
         const w = WORKERS_BY_ID[id]
         return w?.tier !== worker.tier
@@ -91,7 +93,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const { playerDeck } = get()
     const count = playerDeck.filter((id) => id === cardId).length
     if (count > 0 && playerDeck.length > playerDeck.filter((id) => id !== cardId).length) {
-      // Remove one copy
       const idx = playerDeck.indexOf(cardId)
       if (idx !== -1) {
         const newDeck = [...playerDeck]
@@ -123,9 +124,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     state = advanceToMainPhase(state)
     set({ gameState: state, screen: 'game' })
 
-    // If AI goes first, process their turn
     if (state.activePlayerId === 'player2') {
-      setTimeout(() => get().processAITurn(), 500)
+      setTimeout(() => get().processAITurn(), 800)
     }
   },
 
@@ -133,37 +133,48 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const { gameState } = get()
     if (!gameState) return
 
-    let newState = applyAction(gameState, action)
-
+    const newState = applyAction(gameState, action)
     set({ gameState: newState })
 
-    // Check if game is over
     if (newState.phase === 'GAME_OVER') {
       setTimeout(() => set({ screen: 'game-over' }), 1500)
       return
     }
 
-    // If it's now the AI's turn, process it
     if (newState.activePlayerId === 'player2' && newState.phase !== 'FORCED_SWAP') {
-      setTimeout(() => get().processAITurn(), 600)
+      setTimeout(() => get().processAITurn(), 800)
     }
-    // If AI needs to make a forced swap
     if (newState.phase === 'FORCED_SWAP' && newState.awaitingForcedSwap === 'player2') {
-      setTimeout(() => get().processAITurn(), 400)
+      setTimeout(() => get().processAITurn(), 600)
     }
   },
 
   processAITurn: async () => {
     set({ isAIThinking: true })
+    const addEntry = useToastStore.getState().addEntry
 
-    const processOneAction = () => {
+    // Initial thinking delay
+    await delay(600 + Math.random() * 400)
+
+    // Opening emote (30% chance per turn)
+    const { gameState: startState } = get()
+    if (startState && Math.random() < 0.3) {
+      const aiPlayer = startState.players.player2!
+      const aiActive = getActiveUnit(aiPlayer)
+      const emote = getAIEmote(aiActive.workerId, 'greeting')
+      addEntry(`🤖 "${emote}"`, 'emote')
+      await delay(800)
+    }
+
+    let actionCount = 0
+
+    const processOneAction = async () => {
       const { gameState } = get()
       if (!gameState || gameState.phase === 'GAME_OVER') {
         set({ isAIThinking: false })
         return
       }
 
-      // If it's not the AI's turn (unless forced swap), stop
       if (gameState.activePlayerId !== 'player2' &&
           !(gameState.phase === 'FORCED_SWAP' && gameState.awaitingForcedSwap === 'player2')) {
         set({ isAIThinking: false })
@@ -171,8 +182,43 @@ export const useGameStore = create<GameStore>((set, get) => ({
       }
 
       const action = getAIAction(gameState)
+      const aiPlayer = gameState.players.player2!
+      const aiActive = getActiveUnit(aiPlayer)
+      const opPlayer = gameState.players.player1!
+      const opActive = getActiveUnit(opPlayer)
+
+      // Apply the action
       const newState = applyAction(gameState, action)
       set({ gameState: newState })
+
+      // Post-action emotes
+      if (actionCount === 0 || Math.random() < 0.25) {
+        await delay(300 + Math.random() * 200)
+
+        // Check if the action KO'd the opponent
+        const newOpActive = getActiveUnit(newState.players.player1!)
+        const didKO = opActive.currentHp > 0 && newOpActive.isKnockedOut
+
+        if (didKO) {
+          const emote = getAIEmote(aiActive.workerId, 'kill')
+          addEntry(`🤖 "${emote}"`, 'emote')
+          await delay(600)
+        } else if (action.type === 'ATTACK' && Math.random() < 0.3) {
+          const emote = getAIEmote(aiActive.workerId, 'attack')
+          addEntry(`🤖 "${emote}"`, 'emote')
+        } else if (action.type === 'USE_ABILITY' && Math.random() < 0.35) {
+          const emote = getAIEmote(aiActive.workerId, 'ability')
+          addEntry(`🤖 "${emote}"`, 'emote')
+        } else if (action.type === 'PLAY_CARD' && Math.random() < 0.3) {
+          const emote = getAIEmote(aiActive.workerId, 'card')
+          addEntry(`🤖 "${emote}"`, 'emote')
+        } else if (action.type === 'SWAP_UNIT' && Math.random() < 0.4) {
+          const emote = getAIEmote(aiActive.workerId, 'swap')
+          addEntry(`🤖 "${emote}"`, 'emote')
+        }
+      }
+
+      actionCount++
 
       if (newState.phase === 'GAME_OVER') {
         set({ isAIThinking: false })
@@ -180,22 +226,32 @@ export const useGameStore = create<GameStore>((set, get) => ({
         return
       }
 
-      // If AI still needs to act (multi-action turn), continue
+      // Continue if AI still has actions
       if (newState.activePlayerId === 'player2' && newState.phase !== 'FORCED_SWAP') {
         if (action.type === 'END_TURN') {
-          // Turn ended, now it's player's turn after auto-advance
+          // Low HP emote when ending turn (20% chance)
+          if (Math.random() < 0.2) {
+            const newAiActive = getActiveUnit(newState.players.player2!)
+            if (newAiActive.currentHp <= newAiActive.maxHp * 0.3) {
+              const emote = getAIEmote(newAiActive.workerId, 'lowHp')
+              addEntry(`🤖 "${emote}"`, 'emote')
+            }
+          }
           set({ isAIThinking: false })
           return
         }
-        setTimeout(processOneAction, 400)
+        // Delay between AI multi-actions (thinking feel)
+        await delay(500 + Math.random() * 500)
+        await processOneAction()
       } else if (newState.phase === 'FORCED_SWAP' && newState.awaitingForcedSwap === 'player2') {
-        setTimeout(processOneAction, 300)
+        await delay(400 + Math.random() * 300)
+        await processOneAction()
       } else {
         set({ isAIThinking: false })
       }
     }
 
-    setTimeout(processOneAction, 300)
+    await processOneAction()
   },
 
   resetGame: () => set({
