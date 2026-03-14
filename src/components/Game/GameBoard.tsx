@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react'
 import { useGameStore, useAvailableActions } from '../../store/gameStore.ts'
 import { getActiveUnit } from '../../engine/GameState.ts'
-import { Battlefield } from '../Battle/Battlefield.tsx'
-import { InfoBar } from './InfoBar.tsx'
+import { FighterPanel } from '../Battle/Battlefield.tsx'
+import { CenterStrip } from './InfoBar.tsx'
 import { HandDrawer } from '../Hand/HandDrawer.tsx'
 import { ActionBar } from './ActionBar.tsx'
 import { ForcedSwapModal } from './ForcedSwapModal.tsx'
@@ -53,7 +53,7 @@ export function GameBoard() {
   return (
     <div
       className="h-[100dvh] flex flex-col relative overflow-hidden"
-      style={{ background: 'radial-gradient(ellipse at center, #141a24 0%, #0a0e14 70%)' }}
+      style={{ background: '#0a0e14' }}
     >
       {/* Toast notifications */}
       <ToastContainer />
@@ -66,27 +66,26 @@ export function GameBoard() {
         />
       )}
 
-      {/* Opponent info bar */}
-      <InfoBar player={opponent} isPlayer={false} />
+      {/* === THE DUEL LAYOUT === */}
+      {/* Battlefield fills available space above hand/actions */}
+      <div className="flex-1 min-h-0 flex flex-col max-w-2xl mx-auto w-full">
+        {/* Opponent art panel */}
+        <FighterPanel unit={opponentActive} isPlayer={false} isActive={!isPlayerTurn} />
 
-      {/* Battlefield (fills available space) */}
-      <div className="flex-1 flex flex-col justify-center min-h-0">
-        <Battlefield
-          playerUnit={playerActive}
-          opponentUnit={opponentActive}
+        {/* Center strip: bench circles + turn + mana */}
+        <CenterStrip
+          opponent={opponent}
+          player={player}
           turnNumber={gameState.turnNumber}
           isPlayerTurn={isPlayerTurn}
           isAIThinking={isAIThinking}
+          onSwap={(benchIndex) => handleAction({ type: 'SWAP_UNIT', benchIndex })}
+          canSwap={canSwap}
         />
-      </div>
 
-      {/* Player info bar */}
-      <InfoBar
-        player={player}
-        isPlayer={true}
-        onSwap={(benchIndex) => handleAction({ type: 'SWAP_UNIT', benchIndex })}
-        canSwap={canSwap}
-      />
+        {/* Player art panel */}
+        <FighterPanel unit={playerActive} isPlayer={true} isActive={isPlayerTurn} />
+      </div>
 
       {/* Hand drawer */}
       <HandDrawer
