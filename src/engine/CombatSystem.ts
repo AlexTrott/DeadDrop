@@ -39,19 +39,10 @@ export interface AbilityResult {
 export function calculateDamage(unit: UnitState, baseDamage: number): number {
   let damage = baseDamage
   const boost = unit.statusEffects.find((e) => e.type === 'BOOST')
-  if (boost && !isOnBench(unit)) {
-    // Boost only applies when active — but we only call this for active units anyway
+  if (boost) {
     damage += boost.potency
   }
   return damage
-}
-
-/** Check if a unit is "on the bench" — helper used internally */
-function isOnBench(_unit: UnitState): boolean {
-  // This is called for active units during damage calculation,
-  // so it always returns false in current usage.
-  // For proper bench checking, use the player's activeUnitIndex.
-  return false
 }
 
 /** Get the effective mana cost of an ability (base + Slow modifier) */
@@ -171,25 +162,6 @@ export function resolveAbility(
         duration: ability.effect.duration,
       })
       messages.push(`Applied ${ability.effect.type} to self!`)
-    } else if (target === 'all_opponent_bench') {
-      // Hit all bench units (Moped Rider's ult)
-      for (let i = 0; i < opponent.workers.length; i++) {
-        if (i !== opponent.activeUnitIndex && !opponent.workers[i]!.isKnockedOut) {
-          // Bench damage doesn't go through the active unit's shield
-          opponent.workers[i]!.currentHp -= ability.effect.potency
-        }
-      }
-    }
-  }
-
-  // Apply bench damage (e.g. Rush Hour Rampage)
-  if (ability.benchDamage) {
-    for (let i = 0; i < opponent.workers.length; i++) {
-      if (i !== opponent.activeUnitIndex && !opponent.workers[i]!.isKnockedOut) {
-        opponent.workers[i]!.currentHp -= ability.benchDamage
-        const benchWorker = getWorkerData(opponent.workers[i]!)
-        messages.push(`${benchWorker.name} takes ${ability.benchDamage} bench damage!`)
-      }
     }
   }
 
@@ -200,30 +172,13 @@ export function resolveAbility(
       activeUnit.currentHp += healAmount
       if (healAmount > 0) messages.push(`Heals for ${healAmount} HP!`)
     } else if (ability.heal.target === 'all_allies') {
-      // Heal active for full amount, bench for half (Van Driver's ult special case)
-      const healActive = Math.min(ability.heal.amount, activeUnit.maxHp - activeUnit.currentHp)
-      activeUnit.currentHp += healActive
-      if (healActive > 0) messages.push(`Heals self for ${healActive} HP!`)
-      // Heal bench for 5 HP (specific to Warehouse Recall)
-      for (let i = 0; i < player.workers.length; i++) {
-        if (i !== player.activeUnitIndex && !player.workers[i]!.isKnockedOut) {
-          const unit = player.workers[i]!
-          const benchHeal = Math.min(5, unit.maxHp - unit.currentHp)
-          unit.currentHp += benchHeal
-          if (benchHeal > 0) {
-            const bw = getWorkerData(unit)
-            messages.push(`${bw.name} heals for ${benchHeal} HP!`)
-          }
-        }
-      }
-    } else if (ability.heal.target === 'bench_allies') {
-      // Heal all allies (active + bench) for the amount
       for (const unit of player.workers) {
         if (!unit.isKnockedOut) {
-          const healAmt = Math.min(ability.heal.amount, unit.maxHp - unit.currentHp)
-          unit.currentHp += healAmt
+          const healAmount = Math.min(ability.heal.amount, unit.maxHp - unit.currentHp)
+          unit.currentHp += healAmount
         }
       }
+      messages.push(`All allies heal for up to ${ability.heal.amount} HP!`)
     }
   }
 
@@ -235,14 +190,6 @@ export function resolveAbility(
       }
     }
     messages.push(`Draws ${ability.draw} card(s)!`)
-  }
-
-  // Handle Just Eat Scooter's ultimate special case (Shield + Boost combo)
-  // The Full English Fortify gives Shield(12) AND Boost(+2, 2 turns)
-  // The Shield is handled by the effect field, but we need to add Boost too
-  if (workerData.id === 'justeat-scooter' && abilityIndex === 1) {
-    applyStatusEffect(activeUnit, { type: 'BOOST', potency: 2, duration: 2 })
-    messages.push('Applied BOOST to self!')
   }
 
   return { messages }

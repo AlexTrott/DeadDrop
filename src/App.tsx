@@ -3,7 +3,6 @@ import { useGameStore } from './store/gameStore.ts'
 import { TitleScreen } from './components/Game/TitleScreen.tsx'
 import { TeamSelect } from './components/DeckBuilder/TeamSelect.tsx'
 import { DeckBuilder } from './components/DeckBuilder/DeckBuilder.tsx'
-import { StartingUnitSelect } from './components/DeckBuilder/StartingUnitSelect.tsx'
 import { GameBoard } from './components/Game/GameBoard.tsx'
 import { GameOverScreen } from './components/Game/GameOverScreen.tsx'
 
@@ -17,8 +16,6 @@ function App() {
       return <TeamSelect />
     case 'deck-build':
       return <DeckBuilder />
-    case 'starting-unit':
-      return <StartingUnitSelect />
     case 'game':
       return <GameBoard />
     case 'game-over':

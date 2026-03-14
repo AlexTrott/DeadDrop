@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { aiSelectTeam, aiBuildDeck, aiSelectStartingUnit, getAIAction } from '../AIOpponent.ts'
+import { aiSelectTeam, aiBuildDeck, getAIAction } from '../AIOpponent.ts'
 import { createInitialGameState } from '../GameState.ts'
 import { applyAction, advanceToMainPhase } from '../GameEngine.ts'
 import { validateAction } from '../ActionValidator.ts'
@@ -39,10 +39,8 @@ describe('AI Decision Making', () => {
     let state = advanceToMainPhase(createInitialGameState(
       ['deliveroo-cyclist', 'deliveroo-moped', 'deliveroo-walker'],
       aiBuildDeck('DELIVEROO'),
-      0,
       ['uber-driver', 'uber-eats-runner', 'uber-premium'],
       aiBuildDeck('UBER'),
-      0,
       42,
     ))
 
@@ -68,16 +66,12 @@ describe('AI vs AI Integration', () => {
       // AI team selection
       const ai1 = aiSelectTeam([], seed)
       const ai2 = aiSelectTeam(ai1.workerIds, seed + 1)
-      const ai1Start = aiSelectStartingUnit(ai1.workerIds)
-      const ai2Start = aiSelectStartingUnit(ai2.workerIds)
 
       let state = createInitialGameState(
         ai1.workerIds,
         aiBuildDeck(ai1.company),
-        ai1Start,
         ai2.workerIds,
         aiBuildDeck(ai2.company),
-        ai2Start,
         seed + 2,
       )
 

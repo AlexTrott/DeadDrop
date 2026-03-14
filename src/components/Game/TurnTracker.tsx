@@ -1,6 +1,7 @@
 import type { PlayerState, GameAction } from '../../types/index.ts'
 import { getActiveUnit, getWorkerData } from '../../engine/GameState.ts'
 import { getEffectiveAbilityCost } from '../../engine/CombatSystem.ts'
+import { RETREAT_COST_TIER_1, RETREAT_COST_TIER_2 } from '../../engine/constants.ts'
 
 interface TurnTrackerProps {
   player: PlayerState
@@ -17,13 +18,14 @@ export function TurnTracker({ player, availableActions, isPlayerTurn }: TurnTrac
   const canAttack = availableActions.some((a) => a.type === 'ATTACK')
   const canBasic = availableActions.some((a) => a.type === 'USE_ABILITY' && a.abilityIndex === 0)
   const canUltimate = availableActions.some((a) => a.type === 'USE_ABILITY' && a.abilityIndex === 1)
-  const canSwap = availableActions.some((a) => a.type === 'SWAP_UNIT')
+  const canRetreat = availableActions.some((a) => a.type === 'RETREAT')
   const playableCards = availableActions.filter((a) => a.type === 'PLAY_CARD').length
 
   const didAttack = player.hasAttacked
   const didBasic = player.hasUsedBasicAbility
   const didUltimate = player.hasUsedUltimateAbility
-  const didSwap = player.hasSwapped
+
+  const retreatCost = workerData.tier === 1 ? RETREAT_COST_TIER_1 : RETREAT_COST_TIER_2
 
   const basicCost = getEffectiveAbilityCost(activeUnit, workerData.abilities[0]!.manaCost)
   const ultCost = getEffectiveAbilityCost(activeUnit, workerData.abilities[1]!.manaCost)
@@ -53,11 +55,11 @@ export function TurnTracker({ player, availableActions, isPlayerTurn }: TurnTrac
       tooltip: workerData.abilities[1]!.description,
     },
     {
-      label: 'Swap Unit',
-      icon: '🔄',
-      done: didSwap,
-      available: canSwap,
-      cost: '1💧',
+      label: 'Retreat',
+      icon: '🏳️',
+      done: false,
+      available: canRetreat,
+      cost: `${retreatCost}💧`,
     },
     {
       label: `Play Cards (${playableCards})`,

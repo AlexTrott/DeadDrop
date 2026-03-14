@@ -1,10 +1,10 @@
 import type { GameState, GameAction, GamePhase, PlayerId } from '../types/index.ts'
-import { MAX_MANA } from './constants.ts'
+import { MAX_MANA, RETREAT_COST_TIER_1, RETREAT_COST_TIER_2 } from './constants.ts'
 import {
   getActiveUnit,
   getWorkerData,
   getOpponentId,
-  getLivingBenchIndices,
+  getNextLivingUnitIndex,
 } from './GameState.ts'
 import { validateAction } from './ActionValidator.ts'
 import { resolveAbility, processPoisonTicks, decrementStatusEffects, calculateDamage, applyDamageToUnit } from './CombatSystem.ts'
@@ -42,9 +42,9 @@ function checkGameOver(state: GameState): boolean {
 }
 
 /**
- * Handle KO for the defending player's active unit.
- * If the active unit is KO'd, either trigger forced swap or game over.
- * Returns true if a forced swap is now pending.
+ * Handle KO for a player's active unit.
+ * Auto-advances to the next tier unit (linear progression).
+ * Returns true if game is over.
  */
 function handleKO(state: GameState, targetPlayerId: PlayerId): boolean {
   const player = state.players[targetPlayerId]!
@@ -56,22 +56,17 @@ function handleKO(state: GameState, targetPlayerId: PlayerId): boolean {
   addLog(state, targetPlayerId, `${workerData.name} was knocked out!`)
 
   // Check if game is over
-  if (checkGameOver(state)) return false
+  if (checkGameOver(state)) return true
 
-  // Need forced swap
-  const benchIndices = getLivingBenchIndices(player)
-  if (benchIndices.length === 1) {
-    // Auto-swap if only one bench unit
-    player.activeUnitIndex = benchIndices[0]!
+  // Auto-advance to next tier unit
+  const nextIndex = getNextLivingUnitIndex(player)
+  if (nextIndex !== null) {
+    player.activeUnitIndex = nextIndex
     const newWorker = getWorkerData(getActiveUnit(player))
-    addLog(state, targetPlayerId, `${newWorker.name} swaps in!`)
-    return false
+    addLog(state, targetPlayerId, `${newWorker.name} enters the fight!`)
   }
 
-  // Multiple bench units — player must choose
-  state.awaitingForcedSwap = targetPlayerId
-  state.phase = 'FORCED_SWAP'
-  return true
+  return false
 }
 
 /** Process START_OF_TURN phase: mana, poison ticks, KO checks */
@@ -88,12 +83,6 @@ function processStartOfTurn(state: GameState): GameState {
   player.hasAttacked = false
   player.hasUsedBasicAbility = false
   player.hasUsedUltimateAbility = false
-  player.hasSwapped = false
-
-  // Clear swap sickness on all units
-  for (const unit of player.workers) {
-    unit.swapSick = false
-  }
 
   // Process poison ticks on ALL owned units
   const poisonMessages = processPoisonTicks(player)
@@ -102,7 +91,6 @@ function processStartOfTurn(state: GameState): GameState {
   }
 
   // Fatigue: if deck is empty, active unit takes escalating damage each turn
-  // This prevents infinite stalemates in sustain-heavy matchups
   if (player.deck.length === 0) {
     const fatigueDamage = Math.max(1, state.turnNumber - 10)
     const activeUnit = getActiveUnit(player)
@@ -112,7 +100,7 @@ function processStartOfTurn(state: GameState): GameState {
     }
   }
 
-  // Check for KOs from poison
+  // Check for KOs from poison/fatigue
   for (const unit of player.workers) {
     if (unit.currentHp <= 0 && !unit.isKnockedOut) {
       unit.currentHp = 0
@@ -120,19 +108,17 @@ function processStartOfTurn(state: GameState): GameState {
     }
   }
 
-  // Handle active unit KO from poison
+  // Handle active unit KO from poison/fatigue — auto-advance to next tier
   const activeUnit = getActiveUnit(player)
   if (activeUnit.isKnockedOut) {
+    const workerData = getWorkerData(activeUnit)
+    addLog(state, state.activePlayerId, `${workerData.name} was knocked out by poison!`)
     if (checkGameOver(state)) return state
-    const benchIndices = getLivingBenchIndices(player)
-    if (benchIndices.length === 1) {
-      player.activeUnitIndex = benchIndices[0]!
+    const nextIndex = getNextLivingUnitIndex(player)
+    if (nextIndex !== null) {
+      player.activeUnitIndex = nextIndex
       const newWorker = getWorkerData(getActiveUnit(player))
-      addLog(state, state.activePlayerId, `${newWorker.name} swaps in after poison KO!`)
-    } else if (benchIndices.length > 1) {
-      state.awaitingForcedSwap = state.activePlayerId
-      state.phase = 'FORCED_SWAP'
-      return state
+      addLog(state, state.activePlayerId, `${newWorker.name} enters the fight!`)
     }
   }
 
@@ -190,13 +176,8 @@ export function applyAction(state: GameState, action: GameAction): GameState {
 
   // Auto-advance through non-interactive phases
   const phase = (): GamePhase => newState.phase
-  if (phase() === 'START_OF_TURN' && action.type !== 'FORCED_SWAP') {
+  if (phase() === 'START_OF_TURN') {
     processStartOfTurn(newState)
-    if (phase() === 'FORCED_SWAP') {
-      // Poison KO requires forced swap — return state in FORCED_SWAP phase
-      // The original action is discarded; caller must send FORCED_SWAP action next
-      return newState
-    }
     if (phase() === 'GAME_OVER') return newState
     if (phase() === 'DRAW_PHASE') {
       processDrawPhase(newState)
@@ -245,14 +226,6 @@ export function applyAction(state: GameState, action: GameAction): GameState {
         opActiveUnit.isKnockedOut = true
         handleKO(newState, getOpponentId(newState.activePlayerId))
       }
-
-      // Check KO on opponent bench (from bench damage abilities)
-      for (const unit of opponent.workers) {
-        if (unit.currentHp <= 0 && !unit.isKnockedOut) {
-          unit.currentHp = 0
-          unit.isKnockedOut = true
-        }
-      }
       checkGameOver(newState)
       break
     }
@@ -291,44 +264,31 @@ export function applyAction(state: GameState, action: GameAction): GameState {
       break
     }
 
-    case 'SWAP_UNIT': {
-      const oldUnit = getActiveUnit(player)
-      const oldWorker = getWorkerData(oldUnit)
-      player.activeUnitIndex = action.benchIndex
-      const newUnit = getActiveUnit(player)
-      newUnit.swapSick = true
-      player.currentMana -= 1
-      player.hasSwapped = true
-      const newWorker = getWorkerData(newUnit)
-      addLog(newState, newState.activePlayerId, `${oldWorker.name} swaps out, ${newWorker.name} swaps in!`)
+    case 'RETREAT': {
+      const activeUnit = getActiveUnit(player)
+      const workerData = getWorkerData(activeUnit)
+
+      // Pay retreat cost
+      const cost = workerData.tier === 1 ? RETREAT_COST_TIER_1 : RETREAT_COST_TIER_2
+      player.currentMana -= cost
+
+      // KO the current unit (sacrifice)
+      activeUnit.currentHp = 0
+      activeUnit.isKnockedOut = true
+      addLog(newState, newState.activePlayerId, `${workerData.name} retreats (sacrificed)!`)
+
+      // Advance to next tier
+      const nextIndex = getNextLivingUnitIndex(player)
+      if (nextIndex !== null) {
+        player.activeUnitIndex = nextIndex
+        const newWorker = getWorkerData(getActiveUnit(player))
+        addLog(newState, newState.activePlayerId, `${newWorker.name} enters the fight!`)
+      }
       break
     }
 
     case 'END_TURN': {
       processEndOfTurn(newState)
-      break
-    }
-
-    case 'FORCED_SWAP': {
-      const swapPlayer = newState.players[newState.awaitingForcedSwap!]!
-      swapPlayer.activeUnitIndex = action.benchIndex
-      const newWorker = getWorkerData(getActiveUnit(swapPlayer))
-      addLog(newState, swapPlayer.id, `${newWorker.name} swaps in!`)
-      newState.awaitingForcedSwap = null
-
-      // Resume the phase we were in
-      // If we were in START_OF_TURN processing, continue to DRAW_PHASE
-      if (newState.phase === 'FORCED_SWAP') {
-        // Check if this was during start of turn (poison KO) or during main phase
-        // If the forced swap player is the active player, we were in start of turn
-        if (swapPlayer.id === newState.activePlayerId) {
-          newState.phase = 'DRAW_PHASE'
-          processDrawPhase(newState)
-        } else {
-          // Opponent's unit was KO'd during our main phase — back to main phase
-          newState.phase = 'MAIN_PHASE'
-        }
-      }
       break
     }
   }
@@ -338,7 +298,7 @@ export function applyAction(state: GameState, action: GameAction): GameState {
 
 /**
  * Auto-advance through non-interactive phases.
- * Call this after creating initial state or after a FORCED_SWAP to advance to MAIN_PHASE.
+ * Call this after creating initial state to advance to MAIN_PHASE.
  */
 export function advanceToMainPhase(state: GameState): GameState {
   let current = cloneState(state)
@@ -346,7 +306,7 @@ export function advanceToMainPhase(state: GameState): GameState {
   const p = (): GamePhase => current.phase
   if (p() === 'START_OF_TURN') {
     processStartOfTurn(current)
-    if (p() === 'GAME_OVER' || p() === 'FORCED_SWAP') return current
+    if (p() === 'GAME_OVER') return current
   }
 
   if (p() === 'DRAW_PHASE') {

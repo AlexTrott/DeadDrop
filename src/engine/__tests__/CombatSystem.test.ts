@@ -8,11 +8,9 @@ import type { GameState } from '../../types/index.ts'
 function createTestGame(seed = 42): GameState {
   return advanceToMainPhase(createInitialGameState(
     ['deliveroo-cyclist', 'deliveroo-moped', 'deliveroo-walker'],
-    Array(15).fill('hot-bag-toss'),
-    0,
+    Array(20).fill('hot-bag-toss'),
     ['uber-driver', 'uber-eats-runner', 'uber-premium'],
-    Array(15).fill('energy-drink'),
-    0,
+    Array(20).fill('energy-drink'),
     seed,
   ))
 }
@@ -42,11 +40,11 @@ describe('Abilities', () => {
     const opponentId = getOpponentId(state.activePlayerId)
     const hpBefore = getActiveUnit(state.players[opponentId]!).currentHp
 
-    // Deliveroo Cyclist's Hot Bag Slam: 2 mana, 8 damage
+    // Deliveroo Cyclist's Hot Bag Slam: 1 mana, 4 damage (restatted)
     state = applyAction(state, { type: 'USE_ABILITY', abilityIndex: 0 })
 
-    expect(getActiveUnit(state.players[opponentId]!).currentHp).toBe(hpBefore - 8)
-    expect(state.players[state.activePlayerId]!.currentMana).toBe(8) // 10 - 2
+    expect(getActiveUnit(state.players[opponentId]!).currentHp).toBe(hpBefore - 4)
+    expect(state.players[state.activePlayerId]!.currentMana).toBe(9) // 10 - 1
   })
 
   it('cannot use same ability twice per turn', () => {
@@ -84,7 +82,7 @@ describe('Status Effects', () => {
     state = ensureActiveTeam(state, 'DELIVEROO')
 
     const opponentId = getOpponentId(state.activePlayerId)
-    // Deliveroo Cyclist ult: 10 damage + Poison (3/tick)
+    // Deliveroo Cyclist ult: 8 damage + Poison (2/tick) (restatted)
     state = applyAction(state, { type: 'USE_ABILITY', abilityIndex: 1 })
 
     const opUnit = getActiveUnit(state.players[opponentId]!)
@@ -95,8 +93,8 @@ describe('Status Effects', () => {
     state = applyAction(state, { type: 'END_TURN' })
     // Opponent acts — auto-advance processes their START_OF_TURN with poison
     state = applyAction(state, { type: 'ATTACK' })
-    // Poison should have ticked (3 damage) before attack
-    expect(getActiveUnit(state.players[opponentId]!).currentHp).toBe(hpAfterAbility - 3)
+    // Poison should have ticked (2 damage) before attack
+    expect(getActiveUnit(state.players[opponentId]!).currentHp).toBe(hpAfterAbility - 2)
   })
 
   it('Shield absorbs damage', () => {
@@ -203,50 +201,6 @@ describe('Status Effects', () => {
   })
 })
 
-describe('Swap', () => {
-  it('swap costs 1 mana and causes swap sickness', () => {
-    let state = createTestGame()
-    state = setupWithMana(state, 5)
-    const player = state.players[state.activePlayerId]!
-    const benchIdx = player.workers.findIndex((w, i) => i !== player.activeUnitIndex && !w.isKnockedOut)
-
-    state = applyAction(state, { type: 'SWAP_UNIT', benchIndex: benchIdx })
-    expect(state.players[state.activePlayerId]!.currentMana).toBe(4)
-    expect(getActiveUnit(state.players[state.activePlayerId]!).swapSick).toBe(true)
-  })
-
-  it('swap sickness prevents attack and abilities', () => {
-    let state = createTestGame()
-    state = setupWithMana(state, 5)
-    const player = state.players[state.activePlayerId]!
-    const benchIdx = player.workers.findIndex((w, i) => i !== player.activeUnitIndex && !w.isKnockedOut)
-
-    state = applyAction(state, { type: 'SWAP_UNIT', benchIndex: benchIdx })
-    const actions = getAvailableActions(state)
-    expect(actions.some((a) => a.type === 'ATTACK')).toBe(false)
-    expect(actions.some((a) => a.type === 'USE_ABILITY')).toBe(false)
-  })
-
-  it('swap sickness clears on next turn', () => {
-    let state = createTestGame()
-    state = setupWithMana(state, 5)
-    const myId = state.activePlayerId
-    const player = state.players[myId]!
-    const benchIdx = player.workers.findIndex((w, i) => i !== player.activeUnitIndex && !w.isKnockedOut)
-
-    state = applyAction(state, { type: 'SWAP_UNIT', benchIndex: benchIdx })
-    expect(getActiveUnit(state.players[myId]!).swapSick).toBe(true)
-
-    state = applyAction(state, { type: 'END_TURN' })
-    // Opponent's turn — end it
-    state = applyAction(state, { type: 'END_TURN' })
-    // Our turn again — calling ATTACK triggers auto-advance which clears swapSick
-    // If this doesn't throw, swap sickness was cleared
-    state = applyAction(state, { type: 'ATTACK' })
-    expect(state.players[myId]!.hasAttacked).toBe(true)
-  })
-})
-
 describe('KO and Forced Swap', () => {
   it('KO triggers auto-swap when 1 bench unit remains', () => {
     let state = createTestGame()
@@ -286,7 +240,7 @@ describe('KO and Forced Swap', () => {
     expect(state.winner).toBe(state.activePlayerId === 'player1' ? 'player1' : 'player2')
   })
 
-  it('forced swap after KO does not cause swap sickness', () => {
+  it('forced swap after KO brings in a healthy unit', () => {
     let state = createTestGame()
     state = setupWithMana(state, 10)
     const opponentId = getOpponentId(state.activePlayerId)
@@ -304,6 +258,6 @@ describe('KO and Forced Swap', () => {
     getActiveUnit(opPlayer).currentHp = 1
 
     state = applyAction(state, { type: 'ATTACK' })
-    expect(getActiveUnit(state.players[opponentId]!).swapSick).toBe(false)
+    expect(getActiveUnit(state.players[opponentId]!).isKnockedOut).toBe(false)
   })
 })

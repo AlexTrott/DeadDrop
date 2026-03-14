@@ -3,7 +3,7 @@ import type { Company } from '../types/index.ts'
 /**
  * Preset deck configurations per company playstyle.
  * Each deck uses only its own company cards + neutral cards.
- * AI uses these. Max 2 copies of any single card, exactly 15 total.
+ * AI uses these. Max 2 copies of any single card, exactly 20 total.
  */
 export const PRESET_DECKS: Record<Company, string[]> = {
   // Deliveroo: All-in aggro — damage, poison, tempo
@@ -16,10 +16,15 @@ export const PRESET_DECKS: Record<Company, string[]> = {
     'energy-gel',
     'aero-tuck',
     'no-helmet',
-    'pothole',               // neutral
-    'parking-ticket',        // neutral
-    'wrong-address',         // neutral
-    'protein-bar',           // neutral
+    'surge-zone',               // new — 4 mana, 10 dmg
+    'adrenaline-shot',          // new — 3 mana, Boost +3
+    'chain-delivery',           // new — 5 mana, 8 dmg + draw 1
+    'wipeout',                  // new — 6 mana, 14 dmg finisher
+    'turbo-mode',               // new — 2 mana, Boost +2
+    'pothole',                  // neutral
+    'parking-ticket',           // neutral
+    'wrong-address',            // neutral
+    'protein-bar',              // neutral
   ],
 
   // Uber: Shields, slow, grind them down
@@ -32,9 +37,14 @@ export const PRESET_DECKS: Record<Company, string[]> = {
     'child-lock',
     'bottled-water', 'bottled-water',
     'leather-seats',
-    'gps-reroute',
-    'smoke-break',           // neutral
-    'high-vis-vest',         // neutral
+    'gps-reroute',               // reworked — 3 mana, 4 dmg + slow
+    'five-star-armour',         // new — 5 mana, Shield 15 + cleanse
+    'premium-protection',       // new — 4 mana, Shield 12
+    'fare-surge',               // new — 3 mana, 8 dmg
+    'rideshare-riot',           // new — 5 mana, 11 dmg
+    'smoke-break',              // neutral
+    'high-vis-vest',            // neutral
+    'rush-hour',                // neutral
   ],
 
   // Amazon: Card draw, versatile answers
@@ -46,10 +56,14 @@ export const PRESET_DECKS: Record<Company, string[]> = {
     'bus-lane-fine',
     'bubble-wrap', 'bubble-wrap',
     'returns-label',
-    'swap-route',
-    'shortcut',              // neutral
-    'pothole',               // neutral
-    'app-crash',             // neutral
+    'swap-route',              // reworked — 0 mana, draw 1 + boost
+    'next-day-delivery',        // new — 4 mana, draw 3
+    'warehouse-blitz',          // new — 5 mana, 12 dmg
+    'prime-membership',         // new — 3 mana, Shield 8 + draw 1
+    'drone-strike',             // new — 6 mana, 15 dmg
+    'shortcut',                 // neutral
+    'pothole',                  // neutral
+    'app-crash',                // neutral
   ],
 
   // Just Eat: Sustain, heal, outlast
@@ -62,8 +76,13 @@ export const PRESET_DECKS: Record<Company, string[]> = {
     'extra-portion', 'extra-portion',
     'comfort-food',
     'customer-complaint',
-    'smoke-break',           // neutral
-    'phone-charger',         // neutral
-    'protein-bar',           // neutral
+    'feast-mode',               // new — 5 mana, heal 15 + Boost +2
+    'food-coma',                // new — 3 mana, Slow 3 turns
+    'kitchen-fire',             // new — 4 mana, 9 dmg + Poison 2
+    'gourmet-plating',          // new — 4 mana, Shield 10 + Boost +2
+    'michelin-star',            // new — 6 mana, heal 20
+    'smoke-break',              // neutral
+    'phone-charger',            // neutral
+    'protein-bar',              // neutral
   ],
 }

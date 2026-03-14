@@ -14,8 +14,6 @@ interface CenterStripProps {
   turnNumber: number
   isPlayerTurn: boolean
   isAIThinking: boolean
-  onSwap?: (benchIndex: number) => void
-  canSwap?: boolean
   layout?: 'auto'
 }
 
@@ -88,7 +86,7 @@ function BenchCircle({ unit, index, color, canSwap, onSwap, size = 'md' }: {
   )
 }
 
-export function CenterStrip({ opponent, player, turnNumber, isPlayerTurn, isAIThinking, onSwap, canSwap }: CenterStripProps) {
+export function CenterStrip({ opponent, player, turnNumber, isPlayerTurn, isAIThinking }: CenterStripProps) {
   const opponentBench = opponent.workers
     .map((unit, index) => ({ unit, index }))
     .filter(({ index }) => index !== opponent.activeUnitIndex)
@@ -156,10 +154,9 @@ export function CenterStrip({ opponent, player, turnNumber, isPlayerTurn, isAITh
         </div>
 
         <div className="flex gap-2">
-          {playerBench.map(({ unit, index }) => {
-            const canSwapThis = canSwap && !unit.isKnockedOut
-            return <BenchCircle key={index} unit={unit} index={index} color={playerColor} canSwap={!!canSwapThis} onSwap={onSwap} />
-          })}
+          {playerBench.map(({ unit, index }) => (
+            <BenchCircle key={index} unit={unit} index={index} color={playerColor} canSwap={false} />
+          ))}
         </div>
       </div>
 
@@ -228,10 +225,9 @@ export function CenterStrip({ opponent, player, turnNumber, isPlayerTurn, isAITh
       {/* Player bench */}
       <div className="hidden lg:flex flex-col items-center gap-2">
         <span className="text-[8px] text-gray-600 uppercase tracking-wider">Your team</span>
-        {playerBench.map(({ unit, index }) => {
-          const canSwapThis = canSwap && !unit.isKnockedOut
-          return <BenchCircle key={index} unit={unit} index={index} color={playerColor} canSwap={!!canSwapThis} onSwap={onSwap} size="lg" />
-        })}
+        {playerBench.map(({ unit, index }) => (
+          <BenchCircle key={index} unit={unit} index={index} color={playerColor} canSwap={false} size="lg" />
+        ))}
         <span className="text-[8px] text-gray-600 tabular-nums">Deck:{player.deck.length}</span>
       </div>
     </div>

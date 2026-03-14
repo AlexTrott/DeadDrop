@@ -10,10 +10,8 @@ function createTestGame(seed = 42): GameState {
     ['deliveroo-cyclist', 'deliveroo-moped', 'deliveroo-walker'],
     // Simple deck: 15 cheap cards
     Array(15).fill('hot-bag-toss'),
-    0, // starting active unit index
     ['uber-driver', 'uber-eats-runner', 'uber-premium'],
     Array(15).fill('energy-drink'),
-    0,
     seed,
   )
   return advanceToMainPhase(state)
@@ -31,10 +29,8 @@ describe('Game Initialization', () => {
     const state = createInitialGameState(
       ['deliveroo-cyclist', 'deliveroo-moped', 'deliveroo-walker'],
       Array(15).fill('hot-bag-toss'),
-      0,
       ['uber-driver', 'uber-eats-runner', 'uber-premium'],
       Array(15).fill('energy-drink'),
-      0,
       42,
     )
     expect(state.players.player1.hand).toHaveLength(3)
@@ -47,10 +43,8 @@ describe('Game Initialization', () => {
     const rawState = createInitialGameState(
       ['deliveroo-cyclist', 'deliveroo-moped', 'deliveroo-walker'],
       Array(15).fill('hot-bag-toss'),
-      0,
       ['uber-driver', 'uber-eats-runner', 'uber-premium'],
       Array(15).fill('energy-drink'),
-      0,
       42,
     )
     const firstPlayer = rawState.firstPlayerId
@@ -181,11 +175,10 @@ describe('Action Validation', () => {
     expect(validation.valid).toBe(false)
   })
 
-  it('rejects swap with insufficient mana on turn 1', () => {
+  it('rejects retreat with insufficient mana on turn 1', () => {
     const state = createTestGame()
-    // Turn 1 has 1 mana, swap costs 1 — but let's spend it first
-    // Actually swap should be valid on turn 1 since we have exactly 1 mana
-    const validation = validateAction(state, { type: 'SWAP_UNIT', benchIndex: 1 })
-    expect(validation.valid).toBe(true)
+    // Turn 1 has 1 mana, retreat costs 2+ so should be invalid
+    const validation = validateAction(state, { type: 'RETREAT' })
+    expect(validation.valid).toBe(false)
   })
 })

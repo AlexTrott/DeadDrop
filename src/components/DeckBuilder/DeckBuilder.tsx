@@ -16,8 +16,9 @@ export function DeckBuilder() {
   const playerCompany = useGameStore((s) => s.playerCompany)
   const toggleDeckCard = useGameStore((s) => s.toggleDeckCard)
   const setScreen = useGameStore((s) => s.setScreen)
+  const startGame = useGameStore((s) => s.startGame)
 
-  const isReady = playerDeck.length === 15
+  const isReady = playerDeck.length === 20
 
   const countInDeck = (cardId: string) => playerDeck.filter((id) => id === cardId).length
 
@@ -29,7 +30,7 @@ export function DeckBuilder() {
 
   const handleCardClick = (cardId: string) => {
     const count = countInDeck(cardId)
-    if (count > 0 && (count >= 2 || playerDeck.length >= 15)) {
+    if (count > 0 && (count >= 2 || playerDeck.length >= 20)) {
       // Remove one copy
       const idx = playerDeck.indexOf(cardId)
       if (idx !== -1) {
@@ -68,14 +69,14 @@ export function DeckBuilder() {
 
           <div className="text-right">
             <div className="text-2xl font-black" style={{ fontFamily: 'var(--font-display)', color: isReady ? '#22c55e' : 'rgba(255,255,255,0.2)' }}>
-              {playerDeck.length}<span className="text-gray-600 text-lg">/15</span>
+              {playerDeck.length}<span className="text-gray-600 text-lg">/20</span>
             </div>
           </div>
         </div>
 
         {/* Mana curve */}
         <div className="flex justify-center gap-1.5">
-          {[0, 1, 2, 3, 4].map((cost) => {
+          {[0, 1, 2, 3, 4, 5, 6].map((cost) => {
             const count = playerDeck.filter((id) => {
               const card = ALL_ITEMS.find((c) => c.id === id)
               return card && card.manaCost === cost
@@ -182,7 +183,7 @@ export function DeckBuilder() {
         <motion.button
           whileHover={isReady ? { scale: 1.05 } : undefined}
           whileTap={isReady ? { scale: 0.97 } : undefined}
-          onClick={() => setScreen('starting-unit')}
+          onClick={() => startGame()}
           disabled={!isReady}
           className="relative px-10 py-3 rounded-xl font-bold text-base tracking-wide overflow-hidden transition-all"
           style={{
@@ -192,7 +193,7 @@ export function DeckBuilder() {
             boxShadow: isReady ? `0 0 30px ${color}30, 0 4px 16px rgba(0,0,0,0.4)` : 'none',
           }}
         >
-          {isReady ? 'Choose Starting Unit →' : `Need ${15 - playerDeck.length} more card${15 - playerDeck.length !== 1 ? 's' : ''}`}
+          {isReady ? 'Start Battle →' : `Need ${20 - playerDeck.length} more card${20 - playerDeck.length !== 1 ? 's' : ''}`}
         </motion.button>
       </motion.div>
     </div>

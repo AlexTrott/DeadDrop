@@ -41,7 +41,6 @@ export function UnitCard({ unit, size = 'md', onClick, selected, disabled, showA
         ${onClick && !disabled && !isKO ? 'cursor-pointer hover:-translate-y-1 hover:shadow-lg' : ''}
         ${selected ? 'ring-3 ring-yellow-400 scale-105' : ''}
         ${disabled ? 'opacity-50' : ''}
-        ${unit.swapSick ? 'animate-pulse' : ''}
       `}
       style={{
         background: selected
@@ -115,13 +114,6 @@ export function UnitCard({ unit, size = 'md', onClick, selected, disabled, showA
               </div>
             </div>
           ))}
-        </div>
-      )}
-
-      {/* Swap sickness indicator */}
-      {unit.swapSick && (
-        <div className="absolute top-1 left-1 text-xs bg-yellow-900/80 text-yellow-300 px-1 rounded">
-          😵 Sick
         </div>
       )}
 

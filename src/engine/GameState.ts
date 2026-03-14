@@ -11,7 +11,6 @@ export function createUnitState(worker: GigWorker): UnitState {
     maxHp: worker.hp,
     isKnockedOut: false,
     statusEffects: [],
-    swapSick: false,
   }
 }
 
@@ -19,7 +18,6 @@ export function createPlayerState(
   id: PlayerId,
   workerIds: [string, string, string],
   deckCardIds: string[],
-  activeUnitIndex: number,
 ): PlayerState {
   return {
     id,
@@ -28,7 +26,7 @@ export function createPlayerState(
       if (!worker) throw new Error(`Unknown worker: ${wid}`)
       return createUnitState(worker)
     }) as [UnitState, UnitState, UnitState],
-    activeUnitIndex,
+    activeUnitIndex: 0, // Always start with first unit (1★)
     deck: [...deckCardIds],
     hand: [],
     discardPile: [],
@@ -37,28 +35,26 @@ export function createPlayerState(
     hasAttacked: false,
     hasUsedBasicAbility: false,
     hasUsedUltimateAbility: false,
-    hasSwapped: false,
     isFirstTurn: false,
   }
 }
 
 /**
- * Create the initial game state after both players have selected workers, decks, and starting units.
+ * Create the initial game state after both players have selected workers and decks.
+ * Workers must be ordered [1★, 2★, 3★]. Active unit is always index 0 (1★).
  * Shuffles decks, draws starting hands, flips coin for first player.
  */
 export function createInitialGameState(
   p1Workers: [string, string, string],
   p1Deck: string[],
-  p1StartingUnit: number,
   p2Workers: [string, string, string],
   p2Deck: string[],
-  p2StartingUnit: number,
   seed: number,
 ): GameState {
   const rng = createRNG(seed)
 
-  const player1 = createPlayerState('player1', p1Workers, p1Deck, p1StartingUnit)
-  const player2 = createPlayerState('player2', p2Workers, p2Deck, p2StartingUnit)
+  const player1 = createPlayerState('player1', p1Workers, p1Deck)
+  const player2 = createPlayerState('player2', p2Workers, p2Deck)
 
   // Shuffle decks
   player1.deck = shuffle(player1.deck, rng)
@@ -95,9 +91,7 @@ export function createInitialGameState(
     rngSeed: seed,
     rngCounter: rng.getCounter(),
     actionHistory: [],
-    awaitingForcedSwap: null,
     combatLog: [],
-    pendingFreeSwap: null,
   }
 }
 
@@ -113,12 +107,12 @@ export function getWorkerData(unit: UnitState): GigWorker {
   return worker
 }
 
-/** Get living bench unit indices for a player */
-export function getLivingBenchIndices(player: PlayerState): number[] {
-  return player.workers
-    .map((w, i) => ({ w, i }))
-    .filter(({ w, i }) => i !== player.activeUnitIndex && !w.isKnockedOut)
-    .map(({ i }) => i)
+/** Get the next living unit index after the active one (for tier progression) */
+export function getNextLivingUnitIndex(player: PlayerState): number | null {
+  for (let i = player.activeUnitIndex + 1; i < player.workers.length; i++) {
+    if (!player.workers[i]!.isKnockedOut) return i
+  }
+  return null
 }
 
 /** Get the opponent's player ID */

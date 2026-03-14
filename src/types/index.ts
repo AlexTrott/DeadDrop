@@ -28,17 +28,15 @@ export interface Ability {
     type: StatusEffectType
     potency: number
     duration: number | null
-    target: 'self' | 'opponent' | 'all_opponent_bench'
+    target: 'self' | 'opponent'
   }
   /** For abilities that heal */
   heal?: {
     amount: number
-    target: 'self' | 'all_allies' | 'bench_allies'
+    target: 'self' | 'all_allies'
   }
   /** For abilities that draw cards */
   draw?: number
-  /** For abilities that deal bench damage */
-  benchDamage?: number
   description: string
 }
 
@@ -60,13 +58,12 @@ export type CardEffectType =
   | { kind: 'heal'; amount: number; target: 'active' | 'all_allies' }
   | { kind: 'damage'; amount: number; target: 'opponent_active' | 'opponent_all' }
   | { kind: 'damage_conditional'; amount: number; bonusAmount: number; condition: 'target_has_boost'; target: 'opponent_active' }
-  | { kind: 'damage_aoe'; activeDamage: number; benchDamage: number }
+  | { kind: 'damage_aoe'; activeDamage: number }
   | { kind: 'buff'; statusEffect: { type: StatusEffectType; potency: number; duration: number | null } }
   | { kind: 'debuff'; statusEffect: { type: StatusEffectType; potency: number; duration: number | null } }
   | { kind: 'heal_and_cleanse'; healAmount: number; cleanse: 'negative' | 'all' }
   | { kind: 'draw'; amount: number }
-  | { kind: 'free_swap' }
-  | { kind: 'force_opponent_swap' }
+  | { kind: 'draw_and_buff'; drawAmount: number; statusEffect: { type: StatusEffectType; potency: number; duration: number | null } }
   | { kind: 'cleanse'; cleanse: 'negative' | 'all' }
   | { kind: 'multi'; effects: CardEffectType[] }
 
@@ -87,12 +84,10 @@ export interface ItemCard {
 export type GamePhase =
   | 'TEAM_SELECT'
   | 'DECK_BUILD'
-  | 'STARTING_UNIT_SELECT'
   | 'GAME_START'
   | 'START_OF_TURN'
   | 'DRAW_PHASE'
   | 'MAIN_PHASE'
-  | 'FORCED_SWAP'
   | 'END_OF_TURN'
   | 'GAME_OVER'
 
@@ -102,7 +97,6 @@ export interface UnitState {
   maxHp: number
   isKnockedOut: boolean
   statusEffects: StatusEffect[]
-  swapSick: boolean
 }
 
 export interface PlayerState {
@@ -117,7 +111,6 @@ export interface PlayerState {
   hasAttacked: boolean
   hasUsedBasicAbility: boolean
   hasUsedUltimateAbility: boolean
-  hasSwapped: boolean
   isFirstTurn: boolean
 }
 
@@ -132,12 +125,8 @@ export interface GameState {
   rngSeed: number
   rngCounter: number
   actionHistory: GameAction[]
-  /** Which player needs to perform a forced swap (set during FORCED_SWAP phase) */
-  awaitingForcedSwap: PlayerId | null
   /** Log of combat events for UI display */
   combatLog: CombatLogEntry[]
-  /** Player who needs to pick a bench unit for a free swap (from Swap Route card) */
-  pendingFreeSwap: PlayerId | null
 }
 
 export interface CombatLogEntry {
@@ -151,13 +140,11 @@ export interface CombatLogEntry {
 export type GameAction =
   | { type: 'SELECT_WORKERS'; playerId: PlayerId; workerIds: [string, string, string] }
   | { type: 'BUILD_DECK'; playerId: PlayerId; cardIds: string[] }
-  | { type: 'SELECT_STARTING_UNIT'; playerId: PlayerId; workerIndex: number }
   | { type: 'ATTACK' }
   | { type: 'USE_ABILITY'; abilityIndex: 0 | 1 }
   | { type: 'PLAY_CARD'; cardId: string; target?: string }
-  | { type: 'SWAP_UNIT'; benchIndex: number }
+  | { type: 'RETREAT' }
   | { type: 'END_TURN' }
-  | { type: 'FORCED_SWAP'; benchIndex: number }
 
 // ===== Player View (hides opponent info) =====
 

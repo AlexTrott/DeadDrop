@@ -5,7 +5,6 @@ import { FighterPanel } from '../Battle/Battlefield.tsx'
 import { CenterStrip } from './InfoBar.tsx'
 import { HandDrawer } from '../Hand/HandDrawer.tsx'
 import { ActionBar } from './ActionBar.tsx'
-import { ForcedSwapModal } from './ForcedSwapModal.tsx'
 import { ToastContainer, useToastStore } from './Toast.tsx'
 import type { GameAction } from '../../types/index.ts'
 
@@ -38,14 +37,11 @@ export function GameBoard() {
   const playerActive = getActiveUnit(player)
   const opponentActive = getActiveUnit(opponent)
 
-  const canSwap = availableActions.some((a) => a.type === 'SWAP_UNIT')
-  const showForcedSwap = gameState.phase === 'FORCED_SWAP' && gameState.awaitingForcedSwap === 'player1'
-
   const canPlayCard = (cardId: string) =>
     availableActions.some((a) => a.type === 'PLAY_CARD' && a.cardId === cardId)
 
   const handleAction = (action: GameAction) => {
-    if (!isPlayerTurn && action.type !== 'FORCED_SWAP') return
+    if (!isPlayerTurn) return
     dispatch(action)
   }
 
@@ -55,13 +51,6 @@ export function GameBoard() {
       style={{ background: '#0a0e14' }}
     >
       <ToastContainer />
-
-      {showForcedSwap && (
-        <ForcedSwapModal
-          player={player}
-          onSelect={(benchIndex) => handleAction({ type: 'FORCED_SWAP', benchIndex })}
-        />
-      )}
 
       {/* === BATTLEFIELD === */}
       {/* Mobile: vertical stack (opponent art → center strip → player art) */}
@@ -80,8 +69,6 @@ export function GameBoard() {
             turnNumber={gameState.turnNumber}
             isPlayerTurn={isPlayerTurn}
             isAIThinking={isAIThinking}
-            onSwap={(benchIndex) => handleAction({ type: 'SWAP_UNIT', benchIndex })}
-            canSwap={canSwap}
             layout="auto"
           />
         </div>

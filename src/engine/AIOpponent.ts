@@ -1,5 +1,5 @@
 import type { GameState, GameAction } from '../types/index.ts'
-import { getActiveUnit, getWorkerData, getOpponentId, getLivingBenchIndices } from './GameState.ts'
+import { getActiveUnit, getWorkerData, getOpponentId, getNextLivingUnitIndex } from './GameState.ts'
 import { getAvailableActions } from './ActionValidator.ts'
 import { ITEMS_BY_ID } from '../data/items.ts'
 import { WORKERS_BY_COMPANY } from '../data/workers.ts'
@@ -12,6 +12,7 @@ const COMPANIES: Company[] = ['DELIVEROO', 'UBER', 'AMAZON', 'JUST_EAT']
 /**
  * AI selects a team: picks a random company (excluding the player's) and
  * takes 1 worker from each tier (1-star, 2-star, 3-star).
+ * Workers are returned in tier order: [1★, 2★, 3★].
  */
 export function aiSelectTeam(
   takenWorkerIds: string[],
@@ -40,7 +41,7 @@ export function aiSelectTeam(
       const pick2 = tier2[Math.floor(rng.next() * tier2.length)]!
       const pick3 = tier3[Math.floor(rng.next() * tier3.length)]!
       return {
-        workerIds: [pick1.id, pick2.id, pick3.id],
+        workerIds: [pick1.id, pick2.id, pick3.id], // [1★, 2★, 3★]
         company,
       }
     }
@@ -57,24 +58,6 @@ export function aiBuildDeck(company: Company): string[] {
 }
 
 /**
- * AI picks a starting unit: the worker with the highest HP.
- */
-export function aiSelectStartingUnit(workerIds: [string, string, string]): number {
-  let bestIdx = 0
-  let bestHp = 0
-  for (let i = 0; i < workerIds.length; i++) {
-    // Just check by looking up the worker data
-    const allWorkers = Object.values(WORKERS_BY_COMPANY).flat()
-    const w = allWorkers.find((w) => w.id === workerIds[i])
-    if (w && w.hp > bestHp) {
-      bestHp = w.hp
-      bestIdx = i
-    }
-  }
-  return bestIdx
-}
-
-/**
  * Get the AI's action for the current game state.
  * Uses a priority-based decision system.
  */
@@ -85,15 +68,6 @@ export function getAIAction(state: GameState): GameAction {
     return { type: 'END_TURN' }
   }
 
-  // Handle forced swap
-  if (state.phase === 'FORCED_SWAP') {
-    const forcedSwaps = available.filter((a) => a.type === 'FORCED_SWAP')
-    if (forcedSwaps.length > 0) {
-      // Pick the bench unit with the highest HP
-      return pickBestForcedSwap(state, forcedSwaps)
-    }
-  }
-
   const playerId = state.activePlayerId
   const player = state.players[playerId]!
   const opponent = state.players[getOpponentId(playerId)]!
@@ -101,22 +75,18 @@ export function getAIAction(state: GameState): GameAction {
   const workerData = getWorkerData(activeUnit)
   const opActiveUnit = getActiveUnit(opponent)
 
-  const isLateGame = state.turnNumber > 30
-
-  // Priority 1: If active unit is low HP and bench has healthy units → swap (unless late game)
-  if (activeUnit.currentHp <= activeUnit.maxHp * 0.3 && !isLateGame) {
-    const swapActions = available.filter((a) => a.type === 'SWAP_UNIT')
-    if (swapActions.length > 0) {
-      const benchIndices = getLivingBenchIndices(player)
-      const healthyBench = benchIndices.filter((i) => {
-        const unit = player.workers[i]!
-        return unit.currentHp > unit.maxHp * 0.5
-      })
-      if (healthyBench.length > 0) {
-        const bestIdx = healthyBench.reduce((best, idx) =>
-          player.workers[idx]!.currentHp > player.workers[best]!.currentHp ? idx : best
-        )
-        return { type: 'SWAP_UNIT', benchIndex: bestIdx }
+  // Priority 1: Consider retreat if active unit is low HP
+  // Retreat sacrifices current unit and brings in next tier
+  const retreatAction = available.find((a) => a.type === 'RETREAT')
+  if (retreatAction && activeUnit.currentHp <= activeUnit.maxHp * 0.25) {
+    // Don't retreat if we can KO the opponent with ultimate
+    const ult = workerData.abilities[1]!
+    const canLethal = ult.damage && ult.damage >= opActiveUnit.currentHp
+    if (!canLethal) {
+      // More willing to retreat early (1★ is expendable)
+      const nextIdx = getNextLivingUnitIndex(player)
+      if (nextIdx !== null) {
+        return retreatAction
       }
     }
   }
@@ -153,7 +123,7 @@ export function getAIAction(state: GameState): GameAction {
     return ultAction
   }
 
-  // Priority 6: Play high-value item cards
+  // Priority 6: Play high-value item cards (phase-aware)
   const cardActions = available.filter((a) => a.type === 'PLAY_CARD')
   const priorityCard = pickBestCard(state, cardActions)
   if (priorityCard) {
@@ -167,25 +137,6 @@ export function getAIAction(state: GameState): GameAction {
 
   // Default: end turn
   return { type: 'END_TURN' }
-}
-
-function pickBestForcedSwap(state: GameState, swapActions: GameAction[]): GameAction {
-  const playerId = state.awaitingForcedSwap!
-  const player = state.players[playerId]!
-
-  let bestAction = swapActions[0]!
-  let bestHp = -1
-
-  for (const action of swapActions) {
-    if (action.type !== 'FORCED_SWAP') continue
-    const unit = player.workers[action.benchIndex]!
-    if (unit.currentHp > bestHp) {
-      bestHp = unit.currentHp
-      bestAction = action
-    }
-  }
-
-  return bestAction
 }
 
 function pickBestCard(state: GameState, cardActions: GameAction[]): GameAction | null {
@@ -209,12 +160,12 @@ function pickBestCard(state: GameState, cardActions: GameAction[]): GameAction |
       case 'HEALING': {
         const missingHp = activeUnit.maxHp - activeUnit.currentHp
         if (missingHp > 5) {
-          score = Math.min(missingHp, 15) // Value up to 15 points of healing
+          score = Math.min(missingHp, 15)
         }
         break
       }
       case 'DAMAGE': {
-        score = 8 // Damage is generally good
+        score = 8
         // Bonus if it would KO
         if (card.effect.kind === 'damage' && card.effect.amount >= opActiveUnit.currentHp) {
           score = 20
@@ -239,6 +190,7 @@ function pickBestCard(state: GameState, cardActions: GameAction[]): GameAction |
       }
       case 'UTILITY': {
         if (card.effect.kind === 'draw') score = 8
+        if (card.effect.kind === 'draw_and_buff') score = 9
         if (card.effect.kind === 'cleanse') {
           const hasNegative = activeUnit.statusEffects.some((e) => e.type === 'POISON' || e.type === 'SLOW')
           score = hasNegative ? 12 : 1
@@ -247,7 +199,13 @@ function pickBestCard(state: GameState, cardActions: GameAction[]): GameAction |
       }
     }
 
-    // Penalize expensive cards early (mana efficiency)
+    // Phase-aware scoring: prefer cheap cards early, expensive cards late
+    const isEarlyGame = state.turnNumber <= 4
+    if (isEarlyGame && card.manaCost > 3) {
+      score *= 0.5 // Penalize expensive cards in early game
+    }
+
+    // Penalize expensive cards that eat too much of our mana
     if (card.manaCost > player.currentMana * 0.7) {
       score *= 0.7
     }

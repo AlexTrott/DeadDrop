@@ -16,8 +16,8 @@ interface EmoteSet {
   lowHp: string[]
   /** Said when AI plays a card */
   card: string[]
-  /** Said when AI swaps */
-  swap: string[]
+  /** Said when AI retreats (sacrifices unit) */
+  retreat: string[]
 }
 
 const DEFAULT_EMOTES: EmoteSet = {
@@ -27,7 +27,7 @@ const DEFAULT_EMOTES: EmoteSet = {
   kill: ['Too easy.', 'Next!', 'Who\'s next?'],
   lowHp: ['I\'m not done yet.', 'Just a scratch.'],
   card: ['I\'ll play this.', 'Here\'s a surprise.'],
-  swap: ['Tag out!', 'Fresh legs.'],
+  retreat: ['Sacrifices must be made.', 'Time for the big guns.'],
 }
 
 const WORKER_EMOTES: Record<string, Partial<EmoteSet>> = {
@@ -267,7 +267,7 @@ function getEmotes(workerId: string): EmoteSet {
     kill: custom.kill ?? DEFAULT_EMOTES.kill,
     lowHp: custom.lowHp ?? DEFAULT_EMOTES.lowHp,
     card: custom.card ?? DEFAULT_EMOTES.card,
-    swap: custom.swap ?? DEFAULT_EMOTES.swap,
+    retreat: custom.retreat ?? DEFAULT_EMOTES.retreat,
   }
 }
 

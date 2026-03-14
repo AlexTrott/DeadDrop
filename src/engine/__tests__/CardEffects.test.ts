@@ -11,16 +11,16 @@ function createTestGame(seed = 42): GameState {
       'road-rage', 'road-rage', 'swap-route', 'tip-jar',
       'five-star-rating', 'customer-complaint', 'flat-tyre',
       'antidote-smoothie', 'bus-lane-fine', 'power-nap', 'bubble-wrap',
+      'pothole', 'parking-ticket', 'wrong-address', 'protein-bar', 'aero-tuck',
     ],
-    0,
     ['uber-driver', 'uber-eats-runner', 'uber-premium'],
     [
       'energy-drink', 'energy-drink', 'meal-deal', 'meal-deal',
       'bubble-wrap', 'bubble-wrap', 'tinted-windows', 'tinted-windows',
       'customer-complaint', 'customer-complaint', 'dashcam-footage',
       'power-nap', 'bottled-water', 'swap-route', 'bus-lane-fine',
+      'pothole', 'parking-ticket', 'wrong-address', 'protein-bar', 'high-vis-vest',
     ],
-    0,
     seed,
   ))
 }
@@ -101,21 +101,15 @@ describe('Damage Cards', () => {
     expect(getActiveUnit(state.players[opponentId]!).currentHp).toBe(hpBefore - 8)
   })
 
-  it('Bus Lane Fine hits active and bench', () => {
+  it('Bus Lane Fine deals 10 damage to active', () => {
     let state = createTestGame()
     state = giveCardAndMana(state, 'bus-lane-fine', 5)
     const opponentId = getOpponentId(state.activePlayerId)
+    const hpBefore = getActiveUnit(state.players[opponentId]!).currentHp
 
     state = applyAction(state, { type: 'PLAY_CARD', cardId: 'bus-lane-fine' })
 
-    const opPlayer = state.players[opponentId]!
-    // Active takes 6, bench take 3 each
-    const benchUnits = opPlayer.workers.filter((_, i) => i !== opPlayer.activeUnitIndex)
-    for (const bench of benchUnits) {
-      if (!bench.isKnockedOut) {
-        expect(bench.currentHp).toBeLessThan(bench.maxHp)
-      }
-    }
+    expect(getActiveUnit(state.players[opponentId]!).currentHp).toBe(hpBefore - 10)
   })
 })
 
@@ -179,13 +173,16 @@ describe('Utility Cards', () => {
     expect(state.players[state.activePlayerId]!.hand.length).toBe(handBefore - 1 + 2)
   })
 
-  it('GPS Reroute forces opponent swap', () => {
+  it('GPS Jammer deals damage and applies Slow', () => {
     let state = createTestGame()
     state = giveCardAndMana(state, 'gps-reroute', 5)
     const opponentId = getOpponentId(state.activePlayerId)
+    const hpBefore = getActiveUnit(state.players[opponentId]!).currentHp
+
     state = applyAction(state, { type: 'PLAY_CARD', cardId: 'gps-reroute' })
-    // With 2 bench units, the swap should happen
-    expect(state.players[opponentId]!.workers.length).toBe(3)
+
+    expect(getActiveUnit(state.players[opponentId]!).currentHp).toBe(hpBefore - 4)
+    expect(getActiveUnit(state.players[opponentId]!).statusEffects.some((e) => e.type === 'SLOW')).toBe(true)
   })
 
   it('Antidote Smoothie removes all status effects', () => {

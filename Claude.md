@@ -51,7 +51,7 @@ The `engine/` folder must contain **zero React imports**. It is pure TypeScript 
 ### 2. State Machine Approach
 The game runs as a **state machine** with clearly defined phases:
 ```
-DECK_SELECT → GAME_START → DRAW_PHASE → MAIN_PHASE → COMBAT_PHASE → END_PHASE → (loop or GAME_OVER)
+TEAM_SELECT → DECK_BUILD → GAME_START → START_OF_TURN → DRAW_PHASE → MAIN_PHASE → END_OF_TURN → (loop or GAME_OVER)
 ```
 Every action is a **transition** that takes current state and returns new state. No mutations.
 
@@ -60,8 +60,8 @@ All player/AI actions are serialisable objects:
 ```typescript
 type GameAction =
   | { type: 'PLAY_CARD'; cardId: string; target?: string }
-  | { type: 'USE_ABILITY'; abilityIndex: 0 | 1; target?: string }
-  | { type: 'SWAP_UNIT'; benchIndex: number }
+  | { type: 'USE_ABILITY'; abilityIndex: 0 | 1 }
+  | { type: 'RETREAT' }
   | { type: 'ATTACK' }
   | { type: 'END_TURN' }
 ```
@@ -80,15 +80,15 @@ See `rules.md` for full rules. Key numbers for implementation:
 
 | Parameter | Value |
 |---|---|
-| Units per team | 3 |
-| Active units at once | 1 (others on bench) |
-| Item deck size | 15 |
+| Units per team | 3 (one per tier: 1★, 2★, 3★) |
+| Progression | Forced: 1★ → 2★ → 3★ on KO |
+| Item deck size | 20 |
 | Starting hand | 3 items |
 | Cards drawn per turn | 1 |
 | Starting mana | 1 |
 | Mana gain per turn | +1 |
 | Max mana | 10 |
-| Swap cost | 1 mana |
+| Retreat cost | 2 mana (1★→2★), 4 mana (2★→3★) |
 | Abilities per unit | 2 (basic + ultimate) |
 | Win condition | KO all 3 opponent units |
 

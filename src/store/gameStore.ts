@@ -4,12 +4,12 @@ import { createInitialGameState, getActiveUnit } from '../engine/GameState.ts'
 import { WORKERS_BY_ID } from '../data/workers.ts'
 import { applyAction, advanceToMainPhase } from '../engine/GameEngine.ts'
 import { getAvailableActions } from '../engine/ActionValidator.ts'
-import { getAIAction, aiSelectTeam, aiBuildDeck, aiSelectStartingUnit } from '../engine/AIOpponent.ts'
+import { getAIAction, aiSelectTeam, aiBuildDeck } from '../engine/AIOpponent.ts'
 import { getAIEmote } from '../data/emotes.ts'
 import { useToastStore } from '../components/Game/Toast.tsx'
 import type { Company } from '../types/index.ts'
 
-export type GameScreen = 'title' | 'team-select' | 'deck-build' | 'starting-unit' | 'game' | 'game-over'
+export type GameScreen = 'title' | 'team-select' | 'deck-build' | 'game' | 'game-over'
 
 interface GameStore {
   // Navigation
@@ -20,7 +20,6 @@ interface GameStore {
   playerCompany: Company | null
   playerWorkerIds: string[]
   playerDeck: string[]
-  playerStartingUnit: number
   aiCompany: Company | null
   aiWorkerIds: string[]
   aiDeck: string[]
@@ -33,7 +32,6 @@ interface GameStore {
   selectCompany: (company: Company) => void
   toggleWorker: (workerId: string) => void
   toggleDeckCard: (cardId: string) => void
-  setPlayerStartingUnit: (index: number) => void
   startGame: () => void
 
   // Game actions
@@ -53,7 +51,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
   playerCompany: null,
   playerWorkerIds: [],
   playerDeck: [],
-  playerStartingUnit: 0,
   aiCompany: null,
   aiWorkerIds: [],
   aiDeck: [],
@@ -99,25 +96,20 @@ export const useGameStore = create<GameStore>((set, get) => ({
         newDeck.splice(idx, 1)
         set({ playerDeck: newDeck })
       }
-    } else if (count < 2 && playerDeck.length < 15) {
+    } else if (count < 2 && playerDeck.length < 20) {
       set({ playerDeck: [...playerDeck, cardId] })
     }
   },
 
-  setPlayerStartingUnit: (index) => set({ playerStartingUnit: index }),
-
   startGame: () => {
-    const { playerWorkerIds, playerDeck, playerStartingUnit, aiWorkerIds, aiDeck } = get()
-    const aiStart = aiSelectStartingUnit(aiWorkerIds as [string, string, string])
+    const { playerWorkerIds, playerDeck, aiWorkerIds, aiDeck } = get()
     const seed = Date.now()
 
     let state = createInitialGameState(
       playerWorkerIds as [string, string, string],
       playerDeck,
-      playerStartingUnit,
       aiWorkerIds as [string, string, string],
       aiDeck,
-      aiStart,
       seed,
     )
 
@@ -141,11 +133,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return
     }
 
-    if (newState.activePlayerId === 'player2' && newState.phase !== 'FORCED_SWAP') {
+    if (newState.activePlayerId === 'player2') {
       setTimeout(() => get().processAITurn(), 800)
-    }
-    if (newState.phase === 'FORCED_SWAP' && newState.awaitingForcedSwap === 'player2') {
-      setTimeout(() => get().processAITurn(), 600)
     }
   },
 
@@ -175,8 +164,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         return
       }
 
-      if (gameState.activePlayerId !== 'player2' &&
-          !(gameState.phase === 'FORCED_SWAP' && gameState.awaitingForcedSwap === 'player2')) {
+      if (gameState.activePlayerId !== 'player2') {
         set({ isAIThinking: false })
         return
       }
@@ -212,8 +200,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
         } else if (action.type === 'PLAY_CARD' && Math.random() < 0.3) {
           const emote = getAIEmote(aiActive.workerId, 'card')
           addEntry(`🤖 "${emote}"`, 'emote')
-        } else if (action.type === 'SWAP_UNIT' && Math.random() < 0.4) {
-          const emote = getAIEmote(aiActive.workerId, 'swap')
+        } else if (action.type === 'RETREAT' && Math.random() < 0.4) {
+          const emote = getAIEmote(aiActive.workerId, 'retreat')
           addEntry(`🤖 "${emote}"`, 'emote')
         }
       }
@@ -227,7 +215,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       }
 
       // Continue if AI still has actions
-      if (newState.activePlayerId === 'player2' && newState.phase !== 'FORCED_SWAP') {
+      if (newState.activePlayerId === 'player2') {
         if (action.type === 'END_TURN') {
           // Low HP emote when ending turn (20% chance)
           if (Math.random() < 0.2) {
@@ -243,9 +231,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
         // Delay between AI multi-actions (thinking feel)
         await delay(500 + Math.random() * 500)
         await processOneAction()
-      } else if (newState.phase === 'FORCED_SWAP' && newState.awaitingForcedSwap === 'player2') {
-        await delay(400 + Math.random() * 300)
-        await processOneAction()
       } else {
         set({ isAIThinking: false })
       }
@@ -259,7 +244,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
     playerCompany: null,
     playerWorkerIds: [],
     playerDeck: [],
-    playerStartingUnit: 0,
     aiCompany: null,
     aiWorkerIds: [],
     aiDeck: [],

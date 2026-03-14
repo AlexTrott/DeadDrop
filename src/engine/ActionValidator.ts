@@ -1,10 +1,9 @@
 import type { GameState, GameAction } from '../types/index.ts'
-import { SWAP_COST } from './constants.ts'
+import { RETREAT_COST_TIER_1, RETREAT_COST_TIER_2 } from './constants.ts'
 import {
   getActiveUnit,
   getWorkerData,
-  getOpponentId,
-  getLivingBenchIndices,
+  getNextLivingUnitIndex,
 } from './GameState.ts'
 import { ITEMS_BY_ID } from '../data/items.ts'
 import { getEffectiveAbilityCost } from './CombatSystem.ts'
@@ -30,12 +29,10 @@ export function validateAction(state: GameState, action: GameAction): Validation
       return validateUseAbility(state, action.abilityIndex)
     case 'PLAY_CARD':
       return validatePlayCard(state, action.cardId)
-    case 'SWAP_UNIT':
-      return validateSwapUnit(state, action.benchIndex)
+    case 'RETREAT':
+      return validateRetreat(state)
     case 'END_TURN':
       return validateEndTurn(state)
-    case 'FORCED_SWAP':
-      return validateForcedSwap(state, action.benchIndex)
     default:
       return fail('Unknown action type')
   }
@@ -53,9 +50,6 @@ function validateAttack(state: GameState): ValidationResult {
   if (!isMainPhaseOrAutoAdvanceable(state)) return fail('Can only attack during MAIN_PHASE')
   const player = state.players[state.activePlayerId]!
   if (player.hasAttacked && !willAutoAdvance(state)) return fail('Already attacked this turn')
-  const activeUnit = getActiveUnit(player)
-  // Swap sickness is cleared during auto-advance (START_OF_TURN)
-  if (activeUnit.swapSick && !willAutoAdvance(state)) return fail('Unit has swap sickness')
   return ok()
 }
 
@@ -67,8 +61,6 @@ function validateUseAbility(state: GameState, abilityIndex: 0 | 1): ValidationRe
   if (abilityIndex === 1 && player.hasUsedUltimateAbility && !willAutoAdvance(state)) return fail('Already used ultimate ability this turn')
 
   const activeUnit = getActiveUnit(player)
-  if (activeUnit.swapSick && !willAutoAdvance(state)) return fail('Unit has swap sickness')
-
   const workerData = getWorkerData(activeUnit)
   const ability = workerData.abilities[abilityIndex]!
   const cost = getEffectiveAbilityCost(activeUnit, ability.manaCost)
@@ -88,50 +80,29 @@ function validatePlayCard(state: GameState, cardId: string): ValidationResult {
 
   if (player.currentMana < card.manaCost) return fail(`Not enough mana (need ${card.manaCost}, have ${player.currentMana})`)
 
-  // Special validation for utility cards
-  if (card.effect.kind === 'free_swap') {
-    const benchIndices = getLivingBenchIndices(player)
-    if (benchIndices.length === 0) return fail('No bench units to swap with')
-  }
-  if (card.effect.kind === 'force_opponent_swap') {
-    const opponent = state.players[getOpponentId(state.activePlayerId)]!
-    const benchIndices = getLivingBenchIndices(opponent)
-    if (benchIndices.length === 0) return fail('Opponent has no bench units to swap')
-  }
-
   return ok()
 }
 
-function validateSwapUnit(state: GameState, benchIndex: number): ValidationResult {
-  if (!isMainPhaseOrAutoAdvanceable(state)) return fail('Can only swap during MAIN_PHASE')
+function validateRetreat(state: GameState): ValidationResult {
+  if (!isMainPhaseOrAutoAdvanceable(state)) return fail('Can only retreat during MAIN_PHASE')
   const player = state.players[state.activePlayerId]!
 
-  if (player.hasSwapped && !willAutoAdvance(state)) return fail('Already swapped this turn')
-  if (player.currentMana < SWAP_COST && !willAutoAdvance(state)) return fail('Not enough mana to swap')
+  // Can't retreat from 3★ (last unit, index 2)
+  const nextIndex = getNextLivingUnitIndex(player)
+  if (nextIndex === null) return fail('No next unit to advance to')
 
-  const unit = player.workers[benchIndex]
-  if (!unit) return fail('Invalid bench index')
-  if (unit.isKnockedOut) return fail('Cannot swap to a KO\'d unit')
-  if (benchIndex === player.activeUnitIndex) return fail('Cannot swap to the active unit')
+  // Determine retreat cost based on current active unit's tier
+  const activeUnit = getActiveUnit(player)
+  const workerData = getWorkerData(activeUnit)
+  const cost = workerData.tier === 1 ? RETREAT_COST_TIER_1 : RETREAT_COST_TIER_2
+
+  if (player.currentMana < cost) return fail(`Not enough mana to retreat (need ${cost}, have ${player.currentMana})`)
 
   return ok()
 }
 
 function validateEndTurn(state: GameState): ValidationResult {
   if (!isMainPhaseOrAutoAdvanceable(state)) return fail('Can only end turn during MAIN_PHASE')
-  return ok()
-}
-
-function validateForcedSwap(state: GameState, benchIndex: number): ValidationResult {
-  if (state.phase !== 'FORCED_SWAP') return fail('No forced swap pending')
-  if (!state.awaitingForcedSwap) return fail('No player awaiting forced swap')
-
-  const player = state.players[state.awaitingForcedSwap]!
-  const unit = player.workers[benchIndex]
-  if (!unit) return fail('Invalid bench index')
-  if (unit.isKnockedOut) return fail('Cannot swap to a KO\'d unit')
-  if (benchIndex === player.activeUnitIndex) return fail('Cannot swap to the already-active unit')
-
   return ok()
 }
 
@@ -142,15 +113,6 @@ export function getAvailableActions(state: GameState): GameAction[] {
   const actions: GameAction[] = []
 
   if (state.phase === 'GAME_OVER') return actions
-
-  if (state.phase === 'FORCED_SWAP') {
-    const player = state.players[state.awaitingForcedSwap!]!
-    const benchIndices = getLivingBenchIndices(player)
-    for (const idx of benchIndices) {
-      actions.push({ type: 'FORCED_SWAP', benchIndex: idx })
-    }
-    return actions
-  }
 
   // For START_OF_TURN and DRAW_PHASE, the only "action" is to advance
   // (handled automatically by the engine). Return main phase actions
@@ -178,12 +140,9 @@ export function getAvailableActions(state: GameState): GameAction[] {
       }
     }
 
-    // SWAP_UNIT
-    const benchIndices = getLivingBenchIndices(player)
-    for (const idx of benchIndices) {
-      if (validateSwapUnit(state, idx).valid) {
-        actions.push({ type: 'SWAP_UNIT', benchIndex: idx })
-      }
+    // RETREAT
+    if (validateRetreat(state).valid) {
+      actions.push({ type: 'RETREAT' })
     }
 
     // END_TURN — always available in main phase

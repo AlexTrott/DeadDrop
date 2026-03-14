@@ -1,12 +1,9 @@
 import type { GameState, PlayerId, ItemCard } from '../types/index.ts'
 import {
   getActiveUnit,
-  getWorkerData,
   getOpponentId,
-  getLivingBenchIndices,
 } from './GameState.ts'
 import { applyStatusEffect, applyDamageToUnit } from './CombatSystem.ts'
-import { createRNG } from './rng.ts'
 
 export interface CardEffectResult {
   messages: string[]
@@ -82,21 +79,10 @@ function resolveEffect(
     }
 
     case 'damage_aoe': {
-      // Active unit damage
+      // With bench removed, AoE just hits the active opponent for full damage
       const activeOp = getActiveUnit(opponent)
       const actualActive = applyDamageToUnit(activeOp, effect.activeDamage)
-      messages.push(`Deals ${actualActive > 0 ? actualActive : 0} damage to active unit!`)
-
-      // Bench damage
-      for (let i = 0; i < opponent.workers.length; i++) {
-        const unit = opponent.workers[i]!
-        if (i !== opponent.activeUnitIndex && !unit.isKnockedOut) {
-          unit.currentHp -= effect.benchDamage
-          if (unit.currentHp < 0) unit.currentHp = 0
-          const w = getWorkerData(unit)
-          messages.push(`${w.name} takes ${effect.benchDamage} bench damage!`)
-        }
-      }
+      messages.push(`Deals ${actualActive > 0 ? actualActive : 0} damage!`)
       break
     }
 
@@ -144,36 +130,21 @@ function resolveEffect(
       break
     }
 
-    case 'free_swap': {
-      // This requires player to choose a bench unit
-      // For now, the card play triggers a free swap selection
-      // The UI/AI will handle choosing the target via the 'target' parameter
-      // For simplicity, auto-pick the first available bench unit if no target specified
-      const benchIndices = getLivingBenchIndices(player)
-      if (benchIndices.length > 0) {
-        // Store that this is a free swap pending
-        // The swap itself will be handled as a special case
-        state.pendingFreeSwap = playerId
-        messages.push('Choose a bench unit to swap in (no swap sickness)!')
+    case 'draw_and_buff': {
+      // Draw cards
+      let drawn = 0
+      for (let i = 0; i < effect.drawAmount; i++) {
+        if (player.deck.length > 0) {
+          player.hand.push(player.deck.shift()!)
+          drawn++
+        }
       }
-      break
-    }
+      if (drawn > 0) messages.push(`Drew ${drawn} card(s)!`)
 
-    case 'force_opponent_swap': {
-      const benchIndices = getLivingBenchIndices(opponent)
-      if (benchIndices.length > 0) {
-        // Pick a random bench unit using seeded RNG
-        const rng = createRNG(state.rngSeed, state.rngCounter)
-        const randomIdx = rng.nextInt(0, benchIndices.length - 1)
-        state.rngCounter = rng.getCounter()
-
-        const targetIdx = benchIndices[randomIdx]!
-        const oldWorker = getWorkerData(getActiveUnit(opponent))
-        opponent.activeUnitIndex = targetIdx
-        // No swap sickness from card-forced swap
-        const newWorker = getWorkerData(getActiveUnit(opponent))
-        messages.push(`${oldWorker.name} is forced out! ${newWorker.name} swaps in!`)
-      }
+      // Apply buff to active unit
+      const unit = getActiveUnit(player)
+      applyStatusEffect(unit, effect.statusEffect)
+      messages.push(`Applied ${effect.statusEffect.type} to active unit!`)
       break
     }
 

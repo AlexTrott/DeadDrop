@@ -89,13 +89,6 @@ function FighterPanel({ unit, isPlayer, isActive, currentMana }: FighterPanelPro
         ))}
       </div>
 
-      {/* Swap sickness */}
-      {unit.swapSick && (
-        <div className="absolute top-3 right-3 text-[10px] bg-yellow-900/90 text-yellow-300 px-2 py-0.5 rounded-full font-bold z-10">
-          SWAP SICK
-        </div>
-      )}
-
       {/* KO overlay */}
       {unit.isKnockedOut && (
         <div className="absolute inset-0 flex items-center justify-center z-20">
